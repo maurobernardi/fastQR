@@ -14,12 +14,11 @@ developed.](http://www.repostatus.org/badges/0.1.0/active.svg)](http://www.repos
 The QR decomposition algorithm decomposes a matrix
 $\mathbf{A}\in\mathbb{R}^{n\times p}$ into the product of two matrices,
 namely, an orthonormal matrix $\mathbf{Q}\in\mathbb{R}^{n\times n}$ and
-a trapezoidal matrix $\mathbf{R}\in\mathbb{R}^{n\times p}$,
-i.e. $\mathbf{A}=\mathbf{Q}\mathbf{R}$.
+a trapezoidal matrix , i.e. $\mathbf{A}=\mathbf{Q}\mathbf{R}$.
 
 ## Motivation
 
-The QR decompositoin is the foundation algorithm of least squares
+The QR decomposition is the foundation algorithm of least squares
 regression, and is also used in the QR eigenvalue algorithm.
 
 ## Usage
