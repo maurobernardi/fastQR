@@ -12,9 +12,10 @@ developed.](http://www.repostatus.org/badges/0.1.0/active.svg)](http://www.repos
 # QR decomposition
 
 The QR decomposition algorithm decomposes a matrix
-$\mathbf{A}\in\mathbb{R}^{n\times p}$ into the product of two matrices,
+$\mathbf{X}\in\mathbb{R}^{n\times p}$ into the product of two matrices,
 namely, an orthonormal matrix $\mathbf{Q}\in\mathbb{R}^{n\times n}$ and
-a trapezoidal matrix , i.e. $\mathbf{A}=\mathbf{Q}\mathbf{R}$.
+a trapezoidal matrix $\mathbf{R}\in\mathbb{R}^{n\times p}$,
+i.e. $\mathbf{X}=\mathbf{Q}\mathbf{R}$.
 
 ## Motivation
 
