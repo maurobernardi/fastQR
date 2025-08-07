@@ -1,0 +1,429 @@
+---
+title: "Using the `fastQR` package"
+runningheader: "Using the fastQR package" # only for pdf output
+#subtitle: "subtitle" # only for html output
+author: 
+  - name: "Mauro Bernardi"
+    url: https://github.com/maurobernardi
+    affiliation: Department of Statistical Sciences, University of Padova
+    affiliation_url: https://www.rstudio.com
+abstract: |
+  We present the key features of the R package `fastQR`, designed for high-performance statistical computing. This package offers efficient and scalable solutions for QR decomposition and its advanced operations, such as updating and downdating QR, R computation, and L decompositions, significantly enhancing computational efficiency. 
+  
+date: "`r Sys.Date()`"
+output:
+  tufte::tufte_html: 
+    tufte_features: ["fonts", "italics", "background"]
+  tufte::tufte_handout:
+    citation_package: natbib
+    latex_engine: xelatex
+  tufte::tufte_book:
+    citation_package: natbib
+    latex_engine: xelatex
+bibliography: QR_biblio.bib
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+# # Load necessary libraries
+library(tufte)
+library(rbenchmark)
+library(ggplot2)
+library(rstatix)
+library(tidyverse)
+library(parallel)
+library(doParallel)
+
+# Define the color palette
+col_pal <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+# invalidate cache when the tufte version changes
+knitr::opts_chunk$set(cache.extra = packageVersion('tufte'))
+options(htmltools.dir.version = FALSE)
+```
+
+```{r bib, include=FALSE}
+# create a bib file for the R packages used in this document
+knitr::write_bib(c('base', 'rmarkdown'), file = 'skeleton.bib')
+```
+
+# Introduction
+
+In numerical linear algebra, matrix factorization techniques are fundamental for solving systems of equations, least squares problems, and eigenvalue computations. One of the most widely used methods is the QR decomposition, which factors a given matrix $\mathbf{A} \in \mathbb{R}^{m \times n}$ into the product of an orthogonal matrix $\mathbf{Q}$ and an upper triangular matrix $\mathbf{R}$. The decomposition is particularly advantageous due to its numerical stability and efficiency when applied to various computational problems, including solving linear systems and computing the singular value decomposition (SVD) @golub_van_loan.2013.
+
+QR decomposition can be computed through several algorithms, such as the Gram-Schmidt process, Householder reflections, and Givens rotations, each offering different trade-offs in terms of computational efficiency and numerical stability. The Gram-Schmidt process provides an intuitive geometrical approach but may suffer from numerical instability, especially in the presence of nearly linearly dependent columns. On the other hand, Householder reflections are more numerically stable and computationally efficient for large matrices. Givens rotations are particularly suited for sparse matrices due to their ability to zero out specific elements in the matrix.
+
+Due to its versatility and importance in both theoretical and practical contexts, QR decomposition has been extensively studied and remains a fundamental tool in scientific computing and data analysis.
+
+The fastQR R package is a high-performance tool for efficient QR decomposition and related matrix operations. While not as feature-rich as some other packages, fastQR focuses on delivering superior computational efficiency for key tasks, including updating and downdating QR, R, and L decompositions. Its optimized algorithms make it particularly well-suited for handling large datasets and dynamic matrix computations. Additionally, fastQR provides a user-friendly and intuitive interface, ensuring accessibility for both routine statistical computing and advanced linear algebra applications.
+
+QR updating and downdating are efficient techniques for maintaining the QR decomposition of a matrix when it undergoes incremental changes. Updating refers to modifying the decomposition when rows or columns are added to the original matrix, while downdating involves the removal of rows or columns. Directly recomputing the QR decomposition from scratch after every modification is computationally expensive, especially for large matrices. Instead, efficient algorithms leverage the existing QR factors to compute the updated decomposition using operations such as Givens rotations or rank-one updates. These methods ensure numerical stability and significantly reduce computational overhead. Applications of QR updating and downdating are widespread, including real-time signal processing, recursive least squares problems, and adaptive filtering, where matrix structures evolve dynamically [@bjorck.2015]. 
+
+In the Background section, we introduce the QR decomposition and discuss its importance in statistical computing, including scenarios where updating and downdating the decomposition is necessary. We also present algorithms for efficiently performing these operations.
+
+In the fastQR section, we provide an overview of our package, demonstrating its functionality through examples using two toy datasets and a larger synthetic dataset to showcase its computational efficiency and scalability.
+
+
+
+# Background
+
+## The QR factorization
+
+The QR decomposition is a fundamental matrix factorization technique in numerical linear algebra. 
+
+```{marginfigure}
+Given a matrix $A \in \mathbb{R}^{m \times n}$ with $m \geq n$, the QR decomposition factors $A$ as $A = QR$, where $Q \in \mathbb{R}^{m \times n}$ is an orthogonal (or unitary, if complex-valued) matrix satisfying $Q^{\top} Q = I_n$, and $R \in \mathbb{R}^{n \times n}$ is an upper triangular matrix \cite{golub2013matrix}. If $m = n$, $Q$ is a square orthogonal matrix.
+```
+
+
+
+
+## Algorithms for QR Decomposition
+
+Several algorithms are available to compute the QR decomposition, each with its computational advantages and trade-offs.
+
+### Gram-Schmidt Process
+
+The classical (and modified) Gram-Schmidt process provides an intuitive approach by orthogonalizing the columns of $A$. Let $A = [\mathbf{a}_1, \mathbf{a}_2, \dots, \mathbf{a}_n]$, then the Gram-Schmidt process generates an orthogonal basis $\mathbf{q}_1, \dots, \mathbf{q}_n$ as follows:
+
+\[
+\mathbf{q}_k = \mathbf{a}_k - \sum_{j=1}^{k-1} \frac{\mathbf{q}_j^{\top} \mathbf{a}_k}{\mathbf{q}_j^{\top} \mathbf{q}_j} \mathbf{q}_j, \quad \mathbf{q}_k = \frac{\mathbf{q}_k}{\|\mathbf{q}_k\|}.
+\]
+
+The resulting matrix $Q = [\mathbf{q}_1, \mathbf{q}_2, \dots, \mathbf{q}_n]$ forms the orthogonal component of the decomposition.
+
+### Householder Transformations
+
+Householder transformations are often preferred for numerical stability. The Householder reflector $H$ is defined as:
+
+\[
+\mathbf{H} = \mathbf{I} - 2 \frac{\mathbf{u} \mathbf{u}^{\top}}{\mathbf{u}^{\top} \mathbf{u}},
+\]
+
+where $\mathbf{u} = \mathbf{x} - \alpha \mathbf{e}_1$ is chosen to zero out all but the first entry of the column vector $\mathbf{x}$. Applying a sequence of Householder transformations yields the QR decomposition.
+
+### Givens Rotations
+
+Givens rotations are useful for sparse matrices. A Givens rotation $G(i, j, \theta)$ is a plane rotation matrix applied to rows $i$ and $j$ of the matrix $A$ to zero out specific elements, defined as
+
+\[
+G(i, j, \theta) = 
+\begin{bmatrix}
+1 & & & & \\
+& \cos\theta & & -\sin\theta & \\
+& & 1 & & \\
+& \sin\theta & & \cos\theta & \\
+& & & & 1
+\end{bmatrix}.
+\]
+
+The decomposition proceeds by sequentially applying Givens rotations to transform $A$ into an upper triangular matrix $R$.
+
+## Applications of QR Decomposition
+
+QR decomposition is a fundamental tool for solving linear systems, least squares problems, and eigenvalue computations. Its numerical stability and efficiency make it a preferred choice in numerous scientific computing applications [@trefethen_bau.1997].
+
+## Installing the package
+
+To download and install the package from the CRAN repository you can use the `install.packages()` function as follows.
+
+```{r, eval=FALSE}
+install.packages("fastQR", dependencies = TRUE)
+library(fastQR)
+```
+
+
+# Computational time
+
+Compuational time for the QR factorization of the matrix $\bX\in\mathbb{R}^{n\times p}$, with $n=2000$ fixed, see Golub & van Loan (2013).
+
+```{r}
+library(rbenchmark)
+library(fastQR)
+
+## generate sample data
+set.seed(1234)
+n <- 1000
+p <- 500
+X <- matrix(rnorm(n * p, 1), n, p)
+
+## QR decomposition
+benchmark("fastQR" = fastQR::qr(X, nb = 5),
+          "R base" = base::qr(X),
+          replications = 100,
+          columns = c("test", "replications", "elapsed",
+                      "relative", "user.self", "sys.self"))
+```
+
+## QR decomposition
+
+```{r, eval=FALSE, echo=FALSE}
+# Matrix dimensions to test
+nrep <- 20
+n    <- 2000
+p    <- c(20, 40, 100, 200, 400, 800, 1200, 1500, 1800)
+
+detectCores()
+ncores <- 10
+registerDoParallel(cores = ncores)
+
+# Benchmark QR and Cholesky decomposition for each dimension
+output  <- NULL
+set.seed(1234)
+for (dim in p) {
+  results <- NULL
+  results <- foreach::foreach(rep = 1:nrep, .packages = c("fastQR"), .combine = "rbind") %dopar% {
+  #for (rep in 1:nrep) { 
+    # print
+    cat("rep ", rep, "\n")
+    
+    # set seed
+    #set.seed(1234 + rep)
+    
+    # Generate a random matrix
+    mat <- matrix(rnorm(n * dim), nrow = n, ncol = dim)
+    
+    # Measure fastQR, qr time
+    qr_time <- system.time(fastQR::qr(mat, nb = 5, complete = FALSE))["elapsed"]
+    res1    <- data.frame(p = dim, method = "rb QR, nb = 5", time = qr_time)
+    
+    rbqr_time <- system.time(fastQR::qr(X = mat, nb = dim/2, complete = FALSE))["elapsed"]
+    res2      <- data.frame(p = dim, method = "rb QR, nb = p/2", time = rbqr_time)
+    
+    # Measure Cholesky time
+    baseqr_time <- system.time(base::qr(mat))["elapsed"]
+    res3        <- data.frame(p = dim, method = "baseQR",  time = baseqr_time)
+    
+    # return
+    rbind(results, rbind(res1, res2, res3))
+  }
+  output <- rbind(output, results)
+}
+save(file = "QRfact_boxplot.RData", output)
+```
+
+```{r}
+load("QRfact_boxplot.RData")
+print(output %>%
+        group_by(p, method) %>%
+        get_summary_stats(), n = 12)
+```
+
+```{r, fig.margin=TRUE}
+# Convert factors to appropriate types
+output$p <- as.factor(output$p)
+
+# Plot the results
+boxplot <- ggplot(output, aes(x = p, y = time)) +
+  geom_boxplot(aes(color = method)) +
+  labs(
+    x = "p",
+    y = "time (seconds)",
+    fill = "method"
+  ) +
+  theme_classic() +  
+  theme(text = element_text(size = 22)) +
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.0, hjust = .50)) +
+  theme(
+    legend.background    = element_rect(fill = "white", linewidth = 4, colour = "white"),
+    legend.justification = "center",
+    legend.position      = "bottom"
+  ) +
+  #ylim(c(0, 0.01)) +
+  scale_color_manual(labels = c("base QR", "rb QR, nb = 5", "rb QR, nb = p/2"), values = col_pal) +
+  guides(fill = guide_legend("Method")) 
+
+# Display the boxplot
+print(boxplot)
+```
+
+```{r, eval=TRUE, echo=FALSE}
+width   <- 10
+height  <- (9 / 16) * width
+fname   <- "fastQR_QR_decomposition_comp_time.pdf"
+ggsave(fname, width = width, height = height)
+```
+
+## Cholesky factorization via QR
+
+```{r, echo=TRUE, eval=FALSE}
+# Matrix dimensions to test
+nrep <- 10
+n    <- 2000
+p    <- c(20, 40, 100, 200, 400, 800, 1200, 1500, 1800)
+p    <- c(20, 40, 100, 200, 400)
+
+nrep <- 10
+n    <- 200
+p    <- c(20, 40, 60, 80, 100, 120, 140, 160, 180)
+p/4
+
+detectCores()
+ncores <- 10
+registerDoParallel(cores = ncores)
+
+# Benchmark QR and Cholesky decomposition for each dimension
+output  <- NULL
+set.seed(1234)
+for (dim in p) {
+  results <- NULL
+  results <- foreach::foreach(rep = 1:nrep, .packages = c("fastQR"), .combine = "rbind") %dopar% {
+    #for (rep in 1:nrep) { 
+    # print
+    cat("rep ", rep, "\n")
+    
+    # set seed
+    #set.seed(1234 + rep)
+    
+    # Generate a random matrix
+    mat  <- matrix(rnorm(n * dim), nrow = n, ncol = dim)
+    mat2 <- crossprod(mat)
+    
+    # Measure fastQR, qr time
+    qr_time <- system.time(fastQR::qrchol(mat, nb = 5))["elapsed"]
+    res1    <- data.frame(p = dim, method = "rb QR, nb = 5", time = qr_time)
+    
+    rbqr_time <- system.time(fastQR::qrchol(X = mat, nb = dim/2))["elapsed"]
+    res2      <- data.frame(p = dim, method = "rb QR, nb = p/2", time = rbqr_time)
+    
+    # Measure Cholesky time
+    baseqr_time <- system.time(base::chol(mat2))["elapsed"]
+    res3        <- data.frame(p = dim, method = "baseQR",  time = baseqr_time)
+    
+    # return
+    rbind(results, rbind(res1, res2, res3))
+  }
+  output <- rbind(output, results)
+}
+save(file = "cholesky_boxplot.RData", output)
+```
+
+```{r, fig.margin=TRUE}
+print(output %>%
+        group_by(p, method) %>%
+        get_summary_stats(), n = 27)
+
+# Convert factors to appropriate types
+output$p <- as.factor(output$p)
+
+# Plot the results
+boxplot <- ggplot(output, aes(x = p, y = time)) +
+  geom_boxplot(aes(color = method)) +
+  labs(
+    x = "p",
+    y = "time (seconds)",
+    fill = "method"
+  ) +
+  theme_bw() +  
+  theme(text = element_text(size = 22)) +
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.0, hjust = .50)) +
+  theme(
+    legend.background    = element_rect(fill = "white", linewidth = 4, colour = "white"),
+    legend.justification = "center",
+    legend.position      = "bottom"
+  ) +
+  #ylim(c(0, 0.01)) +
+  scale_color_manual(labels = c("base QR", "rb QR, nb = 5", "rb QR, nb = p/2"), values = col_pal) +
+  guides(fill = guide_legend("Method")) 
+
+# Display the boxplot
+print(boxplot)
+
+width   <- 10
+height  <- (9 / 16) * width
+fname   <- "fastQR_Chol_decomposition_comp_time.pdf"
+ggsave(fname, width = width, height = height)
+```
+
+## Solving systems of linear equations
+
+@bjorck.2024
+
+```{r}
+# Matrix dimensions to test
+nrep <- 10
+n    <- 1000
+p    <- c(20, 40, 60, 80, 100, 120, 140, 160, 180, 200, 300, 500)
+p/4
+
+detectCores()
+ncores <- 10
+registerDoParallel(cores = ncores)
+
+# time
+output  <- NULL
+set.seed(1234)
+for (dim in p) {
+  results <- NULL
+  results <- foreach::foreach(rep = 1:nrep, .packages = c("fastQR"), .combine = "rbind") %dopar% {
+    #for (rep in 1:nrep) { 
+    # print
+    cat("rep ", rep, "\n")
+    
+    # set seed
+    #set.seed(1234 + rep)
+    
+    # Generate a random matrix
+    y   <- rnorm(n)
+    X   <- matrix(rnorm(n * dim, 1), n, dim)
+    XTX <- crossprod(X)
+    XTy <- crossprod(X, y)
+    
+    # Measure fastQR, qr time
+    qr_time <- system.time(fastQR::qrsolve(A = XTX, b = XTy, nb = 5))["elapsed"]
+    res1    <- data.frame(p = dim, method = "rb QR, nb = 5", time = qr_time)
+    
+    rbqr_time <- system.time(fastQR::qrsolve(A = XTX, b = XTy, nb = dim/2))["elapsed"]
+    res2      <- data.frame(p = dim, method = "rb QR, nb = p/4", time = rbqr_time)
+    
+    # Measure Solve time
+    baseqr_time <- system.time(qr.solve(crossprod(X), crossprod(X, y)))["elapsed"]
+    res3        <- data.frame(p = dim, method = "baseQR",  time = baseqr_time)
+    
+    # return
+    rbind(results, rbind(res1, res2, res3))
+  }
+  output <- rbind(output, results)
+}
+```
+
+```{r, fig.margin=TRUE, echo=TRUE}
+print(output %>%
+        group_by(p, method) %>%
+        get_summary_stats(), n = 27)
+
+# Convert factors to appropriate types
+output$p <- as.factor(output$p)
+
+# Plot the results
+boxplot <- ggplot(output, aes(x = p, y = time)) +
+  geom_boxplot(aes(color = method)) +
+  labs(
+    x = "p",
+    y = "time (seconds)",
+    fill = "method"
+  ) +
+  theme_bw() +  
+  theme(text = element_text(size = 22)) +
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.0, hjust = .50)) +
+  theme(
+    legend.background    = element_rect(fill = "white", linewidth = 4, colour = "white"),
+    legend.justification = "center",
+    legend.position      = "bottom"
+  ) +
+  #ylim(c(0, 0.01)) +
+  scale_color_manual(labels = c("base QR", "rb QR, nb = 5", "rb QR, nb = p/2"), values = col_pal) +
+  guides(fill = guide_legend("Method")) 
+
+# Display the boxplot
+print(boxplot)
+
+width   <- 10
+height  <- (9 / 16) * width
+fname   <- "fastQR_solve_decomposition_comp_time.pdf"
+ggsave(fname, width = width, height = height)
+```
+
+# QR updating and downdating
+
+
