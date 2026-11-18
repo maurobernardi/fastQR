@@ -132,6 +132,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <a class="nav-link active" href="./index.html" aria-current="page"> 
 <span class="menu-text">Overview</span></a>
   </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./theory.html"> 
+<span class="menu-text">Theory</span></a>
+  </li>  
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-tutorials" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Tutorials</span>
@@ -149,15 +153,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <a class="dropdown-item" href="./regression.html">
  <span class="dropdown-text">Regression and ridge paths</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./ridge-evidence.html">
+ <span class="dropdown-text">Ridge by marginal likelihood</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ridge-updates.html">
+ <span class="dropdown-text">Ridge with growing designs</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item">
     <a class="nav-link" href="./accuracy.html"> 
 <span class="menu-text">Accuracy and timing</span></a>
-  </li>  
-  <li class="nav-item">
-    <a class="nav-link" href="./theory.html"> 
-<span class="menu-text">Theory</span></a>
   </li>  
   <li class="nav-item">
     <a class="nav-link" href="./reference.html"> 
@@ -200,26 +208,31 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <div class="hero">
 <p><span class="eyebrow">NUMERICAL LINEAR ALGEBRA · STATISTICAL COMPUTING</span></p>
-<section id="factor-once.-update-as-your-data-change." class="level2">
-<h2 class="anchored" data-anchor-id="factor-once.-update-as-your-data-change.">Factor once. Update as your data change.</h2>
-<p>A worked guide to QR factorizations, incremental updates and regression with <strong>fastQR</strong>. Follow the mathematics, run the examples and check the numerical results.</p>
+<section id="qr-factorizations-for-changing-data" class="level2">
+<h2 class="anchored" data-anchor-id="qr-factorizations-for-changing-data">QR factorizations for changing data</h2>
+<p>A matrix factorization can support a sequence of statistical calculations as observations and predictors change. This guide connects the mathematical structure of QR factorizations to reusable computations in <strong>fastQR</strong>, with worked regression examples and numerical checks of the results.</p>
 <p><a href="./decompositions.html" class="btn btn-primary">Start with QR</a> <a href="./updates.html" class="btn btn-outline-secondary">Explore updating</a></p>
 </section>
 </div>
 <div class="feature-grid">
 <section id="decompose" class="level3 feature">
 <h3 class="anchored" data-anchor-id="decompose">Decompose</h3>
-<p>Understand full, thin and packed factors. Reconstruct the matrix correctly, including column pivoting.</p>
+<p>The decomposition chapter explains what full, thin and compact factors retain, and how reconstruction changes when columns are pivoted.</p>
 </section>
 <section id="update" class="level3 feature">
 <h3 class="anchored" data-anchor-id="update">Update</h3>
-<p>Add or remove observations and predictors. Follow a sliding-window regression without rebuilding every factorization.</p>
+<p>The update examples follow changes to observations and predictors, leading to a moving-window regression that reuses its triangular factor.</p>
 </section>
 <section id="estimate" class="level3 feature">
 <h3 class="anchored" data-anchor-id="estimate">Estimate</h3>
-<p>Fit least squares, inspect a ridge path and select a penalty using explicit cross-validation.</p>
+<p>The regression chapter develops coefficient estimates, predictions and ridge penalty selection, with independent checks of both numerical backends.</p>
 </section>
 </div>
+<section id="reading-the-guide" class="level2">
+<h2 class="anchored" data-anchor-id="reading-the-guide">Reading the guide</h2>
+<p>The Theory page derives the projection and triangular-solve calculations used throughout the examples. The decomposition chapter then connects those identities to the representations returned by R functions. Updating follows the factors through changes in the data, while regression introduces estimation, regularization and validation. The accuracy chapter revisits the same operations to distinguish the sensitivity of the problem from the numerical error and timing of a particular calculation.</p>
+<p>The discussion assumes familiarity with vectors, matrix multiplication and elementary regression. Quantities introduced in the mathematics are connected to their dimensions and to the corresponding R expressions, so the code can be read as an implementation of the argument rather than as a sequence of unexplained function calls.</p>
+</section>
 <section id="a-guide-built-around-verified-examples" class="level2">
 <h2 class="anchored" data-anchor-id="a-guide-built-around-verified-examples">A guide built around verified examples</h2>
 <p>Each tutorial combines a short derivation with runnable R code, numerical checks and an interpretation of the output. Figures use <code>ggplot2</code>; tables and curves are generated from the displayed examples.</p>
@@ -256,20 +269,26 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="install-and-run" class="level2">
 <h2 class="anchored" data-anchor-id="install-and-run">Install and run</h2>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">"fastQR"</span>)</span>
+<p>To reproduce these examples, download the <a href="downloads/fastQR_1.1.6.tar.gz">verified source build</a> and install it from the directory containing the archive. This guide uses the revised development build dated 16 November 2026; its package version is 1.1.6.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">"fastQR_1.1.6.tar.gz"</span>, <span class="at">repos =</span> <span class="cn">NULL</span>, <span class="at">type =</span> <span class="st">"source"</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2026</span>)</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(<span class="dv">120</span> <span class="sc">*</span> <span class="dv">6</span>), <span class="dv">120</span>, <span class="dv">6</span>)</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>factorization <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qr</span>(X, <span class="at">complete =</span> <span class="cn">FALSE</span>)</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(factorization<span class="sc">$</span>Q <span class="sc">%*%</span> factorization<span class="sc">$</span>R <span class="sc">-</span> X))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>The worked examples were checked with <strong>fastQR 1.1.5</strong>. Rendering additionally requires <code>rmarkdown</code>, <code>knitr</code> and <code>ggplot2</code>. The computational environment is recorded in <a href="./accuracy.html">Accuracy and timing</a>.</p>
+<p>The worked examples were checked with <strong>fastQR 1.1.6</strong>. Rendering additionally requires <code>rmarkdown</code>, <code>knitr</code> and <code>ggplot2</code>. The computational environment is recorded in <a href="./accuracy.html">Accuracy and timing</a>.</p>
 </section>
 <section id="read-or-run-the-complete-guide" class="level2">
 <h2 class="anchored" data-anchor-id="read-or-run-the-complete-guide">Read or run the complete guide</h2>
 <ul>
 <li><a href="downloads/fastqr-guide.html">Download the full HTML vignette</a>.</li>
 <li><a href="downloads/all-examples.R">Download all executable R examples</a>.</li>
+<li><a href="downloads/lapack-comparison.zip">Download the matched LAPACK benchmark and its recorded results</a>.</li>
 </ul>
+<p>The LAPACK comparison reads the CSV files distributed in the benchmark archive. Unpack that archive into the project directory before running the complete example script.</p>
 <p><strong>Package authors:</strong> Mauro Bernardi, Claudio Busatto and Manuela Cattelan. Bibliographic details are provided in <a href="./theory.html">Further reading</a>.</p>
+<p>The tutorial <a href="./ridge-updates.html">Ridge with growing designs</a> follows observation and predictor additions through the boundary between tall and wide designs. It compares maintained triangular factors with fresh LAPACK factorizations, and distinguishes a fixed total penalty from a fixed normalized penalty.</p>
+<p><a href="./ridge-evidence.html">Ridge by marginal likelihood</a> derives an empirical Bayes alternative to cross-validation: the coefficients are integrated out, the noise variance is profiled, and the penalty is estimated from the resulting response model. Reproducible simulations compare the selectors on both tall and wide designs.</p>
+<p>The empirical Bayes <a href="downloads/ridge-evidence.R">R helpers</a> and <a href="downloads/ridge-evidence-experiments.R">simulation driver</a> are available separately, as well as in the complete guide project.</p>
 
 
 </section>
@@ -684,7 +703,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       &nbsp;
     </div>
     <div class="nav-footer-right">
-<p>Worked examples · Version 1.1.5</p>
+<p>Worked examples · Version 1.1.6</p>
 </div>
   </div>
 </footer>

@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.7.32">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Choosing the ridge penalty by marginal likelihood – fastQR</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./assets/unipd-seal.png" rel="icon" type="image/png">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-234273d1456647dabc34a594ac50e507.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-3aba38651184ee82a9c65464af710223.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    <img src="./assets/unipd-seal.png" alt="University of Padua seal" class="navbar-logo">
+    </a>
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">fastQR</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./index.html"> 
+<span class="menu-text">Overview</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./theory.html"> 
+<span class="menu-text">Theory</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-tutorials" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Tutorials</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-tutorials">    
+        <li>
+    <a class="dropdown-item" href="./decompositions.html">
+ <span class="dropdown-text">QR decompositions</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./updates.html">
+ <span class="dropdown-text">Updating and downdating</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./regression.html">
+ <span class="dropdown-text">Regression and ridge paths</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ridge-evidence.html">
+ <span class="dropdown-text">Ridge by marginal likelihood</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ridge-updates.html">
+ <span class="dropdown-text">Ridge with growing designs</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="./accuracy.html"> 
+<span class="menu-text">Accuracy and timing</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./reference.html"> 
+<span class="menu-text">Function guide</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#a-gaussian-model-whose-posterior-mean-is-ridge" id="toc-a-gaussian-model-whose-posterior-mean-is-ridge" class="nav-link active" data-scroll-target="#a-gaussian-model-whose-posterior-mean-is-ridge"><span class="header-section-number">1</span> A Gaussian model whose posterior mean is ridge</a></li>
+  <li><a href="#integrating-the-coefficients" id="toc-integrating-the-coefficients" class="nav-link" data-scroll-target="#integrating-the-coefficients"><span class="header-section-number">2</span> Integrating the coefficients</a></li>
+  <li><a href="#profiling-the-variance-and-optimizing-the-penalty" id="toc-profiling-the-variance-and-optimizing-the-penalty" class="nav-link" data-scroll-target="#profiling-the-variance-and-optimizing-the-penalty"><span class="header-section-number">3</span> Profiling the variance and optimizing the penalty</a>
+  <ul class="collapse">
+  <li><a href="#the-score-equation-and-the-conditional-smoother-trace" id="toc-the-score-equation-and-the-conditional-smoother-trace" class="nav-link" data-scroll-target="#the-score-equation-and-the-conditional-smoother-trace"><span class="header-section-number">3.1</span> The score equation and the conditional smoother trace</a></li>
+  </ul></li>
+  <li><a href="#a-single-decomposition-for-the-entire-objective" id="toc-a-single-decomposition-for-the-entire-objective" class="nav-link" data-scroll-target="#a-single-decomposition-for-the-entire-objective"><span class="header-section-number">4</span> A single decomposition for the entire objective</a></li>
+  <li><a href="#independent-numerical-checks" id="toc-independent-numerical-checks" class="nav-link" data-scroll-target="#independent-numerical-checks"><span class="header-section-number">5</span> Independent numerical checks</a></li>
+  <li><a href="#comparing-marginal-likelihood-and-cross-validation" id="toc-comparing-marginal-likelihood-and-cross-validation" class="nav-link" data-scroll-target="#comparing-marginal-likelihood-and-cross-validation"><span class="header-section-number">6</span> Comparing marginal likelihood and cross-validation</a></li>
+  <li><a href="#what-changes-when-data-or-predictors-are-updated" id="toc-what-changes-when-data-or-predictors-are-updated" class="nav-link" data-scroll-target="#what-changes-when-data-or-predictors-are-updated"><span class="header-section-number">7</span> What changes when data or predictors are updated?</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Choosing the ridge penalty by marginal likelihood</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<!-- Generato da chapters/ridge-evidence.Rmd: modificare quel file, poi source("build.R"). -->
+<p>Cross-validation selects a penalty by measuring predictive performance on observations omitted from fitting. A probability model offers another route: the coefficient vector can be integrated out, leaving a marginal likelihood for the regularization parameter. This chapter develops that construction explicitly, including the normalization terms that would be lost by treating a penalized residual sum of squares as a likelihood on its own.</p>
+<p>We first describe the Gaussian model and derive its marginal likelihood, then explain how the variance and penalty are estimated. The implementation uses a single singular value decomposition to avoid repeating a matrix factorization at every candidate penalty. An independent QR calculation verifies the resulting coefficients. The concluding simulations compare this empirical Bayes procedure with an efficient cross-validation calculation on both tall and wide designs, under a dense Gaussian signal and a sparse signal that departs from the assumed coefficient distribution.</p>
+<p>Gaussian marginal likelihood and hyperparameter selection are treated in <span class="citation" data-cites="rasmussen_williams.2006">Rasmussen and Williams (<a href="#ref-rasmussen_williams.2006" role="doc-biblioref">2006</a>)</span>, Chapters 2 and 5. For work specifically on fast marginal likelihood selection of ridge parameters using singular values, see <span class="citation" data-cites="karabatsos.2015">Karabatsos (<a href="#ref-karabatsos.2015" role="doc-biblioref">2015</a>)</span>. The construction below fixes its own prior and profiles the noise variance; it should not be read as a reproduction of every prior or algorithm in those references.</p>
+<section id="a-gaussian-model-whose-posterior-mean-is-ridge" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> A Gaussian model whose posterior mean is ridge</h1>
+<p>Let <span class="math inline">\(X\in\mathbb R^{n\times p}\)</span> be fixed, and suppose <span class="math display">\[
+y\mid\beta,\sigma^2\sim N_n(X\beta,\sigma^2I_n),\qquad
+\beta\mid\sigma^2,\lambda\sim N_p\!\left(0,\frac{\sigma^2}{n\lambda}I_p\right),
+\qquad \lambda&gt;0.
+\]</span> The prior has the same variance in every coefficient direction. Its meaning consequently depends on the units of the predictors: rescaling a column without transforming the prior changes the model. The examples use predictors generated on a common scale, with a known zero intercept. The package does not insert an intercept or standardize columns automatically.</p>
+<p>Set <span class="math inline">\(\alpha=n\lambda\)</span> and <span class="math inline">\(A_\alpha=X^\top X+\alpha I_p\)</span>. Multiplying the likelihood and prior gives a quadratic exponent proportional to <span class="math display">\[
+\|y-X\beta\|_2^2+\alpha\|\beta\|_2^2.
+\]</span> Completing the square yields <span class="math display">\[
+\|y-X\beta\|_2^2+\alpha\|\beta\|_2^2
+=q_\alpha+(\beta-\widehat\beta_\alpha)^\top A_\alpha
+                   (\beta-\widehat\beta_\alpha),
+\]</span> where <span class="math display">\[
+\widehat\beta_\alpha=A_\alpha^{-1}X^\top y,\qquad
+q_\alpha=\|y-X\widehat\beta_\alpha\|_2^2+
+                    \alpha\|\widehat\beta_\alpha\|_2^2.
+\]</span> Thus the conditional posterior is <span class="math display">\[
+\beta\mid y,\sigma^2,\lambda\sim
+N_p(\widehat\beta_\alpha,\sigma^2 A_\alpha^{-1}).
+\]</span> Its mean and mode coincide with the ridge coefficients for the normalized criterion used by <code>qrridge()</code>. The inverse notation specifies the mathematical result; the numerical calculations below use decompositions and solves.</p>
+</section>
+<section id="integrating-the-coefficients" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> Integrating the coefficients</h1>
+<p>Integration means evaluating the density of the observed response after averaging over the coefficient prior: <span class="math display">\[
+p(y\mid\sigma^2,\lambda)=
+\int_{\mathbb R^p}p(y\mid\beta,\sigma^2)
+                      p(\beta\mid\sigma^2,\lambda)\,\mathrm d\beta.
+\]</span> Using the completed square, the Gaussian integral contributes <span class="math inline">\((2\pi\sigma^2)^{p/2}|A_\alpha|^{-1/2}\)</span>. Combining this factor with the likelihood and prior normalizations gives <span class="math display">\[
+p(y\mid\sigma^2,\lambda)
+=(2\pi\sigma^2)^{-n/2}\alpha^{p/2}|A_\alpha|^{-1/2}
+                 \exp\!\left(-\frac{q_\alpha}{2\sigma^2}\right).
+\]</span> The determinant factor matters: it changes when the prior becomes more or less concentrated. Omitting it would not maximize this marginal likelihood.</p>
+<p>The same result follows directly from adding independent Gaussian random vectors. Writing <span class="math display">\[
+C_\lambda=I_n+\frac{XX^\top}{n\lambda},
+\]</span> we obtain <span class="math display">\[
+y\mid\sigma^2,\lambda\sim N_n(0,\sigma^2 C_\lambda).
+\]</span> The determinant identity and quadratic-form identity are <span class="math display">\[
+\log|C_\lambda|=\log|A_\alpha|-p\log\alpha,
+\qquad y^\top C_\lambda^{-1}y=q_\alpha.
+\]</span> If <span class="math inline">\(R^\top R=A_\alpha\)</span>, the first quantity can also be evaluated as <span class="math display">\[
+\log|C_\lambda|=2\sum_{j=1}^p\log|R_{jj}|-p\log\alpha.
+\]</span> This connects the criterion to the augmented QR factors used in the previous chapter. For the quadratic form, evaluating the penalized residual expression is preferable to subtracting the nearly equal quantities <span class="math inline">\(y^\top y\)</span> and <span class="math inline">\(y^\top X\widehat\beta_\alpha\)</span> when the fit is very close.</p>
+</section>
+<section id="profiling-the-variance-and-optimizing-the-penalty" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> Profiling the variance and optimizing the penalty</h1>
+<p>For a given <span class="math inline">\(\lambda\)</span>, differentiation of the marginal log likelihood with respect to <span class="math inline">\(\sigma^2\)</span> gives <span class="math display">\[
+\widehat\sigma^2_\lambda=\frac{q_\alpha}{n}.
+\]</span> This is the maximum-likelihood estimate under the marginal model. It is not the residual diagnostic based on <span class="math inline">\(n-p\)</span>, nor a correction based on the smoother trace. Inserting it into the negative log likelihood leaves, up to a constant independent of <span class="math inline">\(\lambda\)</span>, <span class="math display">\[
+F(\lambda)=\frac12\left\{
+n\log\!\left(\frac{q_\alpha}{n}\right)+\log|C_\lambda|
+\right\}.
+\]</span> We minimize this one-dimensional function and then evaluate the ridge posterior mean at the selected penalty. The coefficients have been integrated out, while <span class="math inline">\(\sigma^2\)</span> has been profiled and <span class="math inline">\(\lambda\)</span> estimated. No prior on <span class="math inline">\(\lambda\)</span> is integrated in this procedure, and no claim of fully Bayesian hyperparameter uncertainty is implied.</p>
+<p>Optimization is performed on <span class="math inline">\(t=\log\lambda\)</span>, so every evaluated finite penalty is positive. A coarse grid locates candidate local minima; bounded searches refine their neighboring intervals, and the endpoints are compared explicitly. A finite grid cannot certify a global optimum for every possible response. A returned lower-bound solution calls for inspecting and, where appropriate, extending the search range rather than describing it as an interior optimum.</p>
+<p>The implementation also evaluates the limiting model <span class="math inline">\(\lambda\to\infty\)</span>. In that limit the coefficient prior collapses at zero, <span class="math inline">\(C_\lambda\to I_n\)</span>, and the fitted mean is zero. A data set can support this limit. Reporting it explicitly avoids inventing a large but arbitrary finite optimum. At the other extreme, small penalties can produce weakly identified or boundary behavior, especially in saturated or nearly interpolating settings; positivity alone does not guarantee a well-separated interior maximum.</p>
+<p>An unknown unpenalized intercept requires an additional treatment of the mean, for example through generalized least-squares profiling or a restricted-likelihood construction with its corresponding adjustment. Simply centering the response and retaining every term of the known-mean likelihood without justification would change the inferential argument. The present implementation uses the explicitly stated known-zero-mean model and does not implement REML.</p>
+<section id="the-score-equation-and-the-conditional-smoother-trace" class="level2" data-number="3.1">
+<h2 data-number="3.1" class="anchored" data-anchor-id="the-score-equation-and-the-conditional-smoother-trace"><span class="header-section-number">3.1</span> The score equation and the conditional smoother trace</h2>
+<p>The singular values also give an interpretable derivative of the profile criterion. With <span class="math inline">\(t=\log\lambda\)</span> and <span class="math inline">\(\alpha=n\exp(t)\)</span>, define <span class="math display">\[
+\dot q_\alpha=\sum_{j=1}^r z_j^2
+\frac{\alpha d_j^2}{(d_j^2+\alpha)^2},\qquad
+d_\alpha=\sum_{j=1}^r\frac{d_j^2}{d_j^2+\alpha}.
+\]</span> Differentiating the profile criterion gives <span class="math display">\[
+\frac{\mathrm d F}{\mathrm d t}
+=\frac12\left(\frac{n\dot q_\alpha}{q_\alpha}-d_\alpha\right).
+\]</span> Here <span class="math inline">\(d_\alpha\)</span> is the trace of the ridge smoother at a fixed penalty. An interior empirical Bayes optimum balances these two terms. This identity is useful for checking an optimizer, but it does not justify replacing the marginal-model variance estimate <span class="math inline">\(q_\alpha/n\)</span> with a residual degrees-of-freedom adjustment. The numerical checks below compare the analytic derivative with a centered finite difference.</p>
+</section>
+</section>
+<section id="a-single-decomposition-for-the-entire-objective" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> A single decomposition for the entire objective</h1>
+<p>Let <span class="math inline">\(X=UDV^\top\)</span> be an economy singular value decomposition with <span class="math inline">\(r=\min(n,p)\)</span> columns in <span class="math inline">\(U\)</span>, and write <span class="math inline">\(z=U^\top y\)</span> and <span class="math inline">\(y_\perp=y-Uz\)</span>. Then <span class="math display">\[
+\log|C_\lambda|=\sum_{j=1}^r\log\!\left(1+\frac{d_j^2}{\alpha}\right),
+\qquad
+q_\alpha=\|y_\perp\|_2^2+
+\sum_{j=1}^r z_j^2\frac{\alpha}{d_j^2+\alpha}.
+\]</span> These formulas remain valid for zero singular values and for <span class="math inline">\(p&gt;n\)</span>. Evaluating the residual component directly avoids obtaining its squared norm by subtraction. The logarithm is computed with <code>log1p()</code>, which preserves accuracy for small arguments. After preparation, evaluating a new penalty uses scalar operations on the stored singular values and projected response rather than a fresh decomposition.</p>
+<p>The posterior mean is recovered as <span class="math display">\[
+\widehat\beta_\alpha=V\,\operatorname{diag}
+\!\left(\frac{d_j}{d_j^2+\alpha}\right)z.
+\]</span> This is a computational alternative to repeatedly refactorizing the augmented design. The SVD is included in the measured cost of penalty selection below; it is not treated as an available free input.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>evidence_X <span class="ot">&lt;-</span> evidence_results<span class="sc">$</span>demo<span class="sc">$</span>X</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>evidence_y <span class="ot">&lt;-</span> evidence_results<span class="sc">$</span>demo<span class="sc">$</span>y</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>evidence_fit <span class="ot">&lt;-</span> evidence_results<span class="sc">$</span>demo<span class="sc">$</span>fit</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(<span class="at">lambda =</span> evidence_fit<span class="sc">$</span>lambda,</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>                        <span class="at">alpha =</span> evidence_fit<span class="sc">$</span>alpha,</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>                        <span class="at">sigma2 =</span> evidence_fit<span class="sc">$</span>sigma2,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>                        <span class="at">status =</span> evidence_fit<span class="sc">$</span>status), <span class="at">digits =</span> <span class="dv">5</span>,</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>             <span class="at">caption =</span> <span class="st">"Empirical Bayes penalty and marginal-model variance estimate for the reproducible example."</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="caption-top table">
+<caption>Empirical Bayes penalty and marginal-model variance estimate for the reproducible example.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: right;">lambda</th>
+<th style="text-align: right;">alpha</th>
+<th style="text-align: right;">sigma2</th>
+<th style="text-align: left;">status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">0.0709</td>
+<td style="text-align: right;">7.08978</td>
+<td style="text-align: right;">0.95447</td>
+<td style="text-align: left;">interior</td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># In a new analysis, after sourcing scripts/ridge-evidence.R:</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co"># evidence_fit &lt;- ridge_evidence_fit(X, y)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>The estimated penalty can be passed directly to the package’s normalized ridge interface when it is finite. The following comparison checks that the posterior mean computed from singular values agrees with the augmented-factor implementation.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">is.finite</span>(evidence_fit<span class="sc">$</span>lambda)) {</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  evidence_native <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qrridge</span>(evidence_y, evidence_X,</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>                                    evidence_fit<span class="sc">$</span>lambda, <span class="at">type =</span> <span class="st">"R"</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  evidence_native_error <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="fu">abs</span>(evidence_native<span class="sc">$</span>coeff <span class="sc">-</span> evidence_fit<span class="sc">$</span>coeff))</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stopifnot</span>(evidence_native_error <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  evidence_native_error</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code>## [1] 1.94289e-15</code></pre>
+<p><a href="#fig-ridge-evidence-objective">Figure 6</a> shows how the profile criterion changes with the penalty. The plotted ordinate subtracts the smallest displayed value for readability; this has no effect on the estimated minimum. A nearly flat region indicates that noticeably different penalties can have similar marginal support.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>evidence_curve <span class="ot">&lt;-</span> evidence_fit<span class="sc">$</span>curve</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>evidence_curve<span class="sc">$</span>relative_score <span class="ot">&lt;-</span> evidence_curve<span class="sc">$</span>score <span class="sc">-</span> <span class="fu">min</span>(evidence_curve<span class="sc">$</span>score)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>evidence_plot <span class="ot">&lt;-</span> ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(evidence_curve, ggplot2<span class="sc">::</span><span class="fu">aes</span>(lambda, relative_score)) <span class="sc">+</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_line</span>(<span class="at">colour =</span> <span class="st">"#b5121b"</span>) <span class="sc">+</span> ggplot2<span class="sc">::</span><span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">labs</span>(<span class="at">x =</span> <span class="fu">expression</span>(lambda), <span class="at">y =</span> <span class="st">"Profile criterion above displayed minimum"</span>) <span class="sc">+</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">11</span>)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">is.finite</span>(evidence_fit<span class="sc">$</span>lambda)) evidence_plot <span class="ot">&lt;-</span> evidence_plot <span class="sc">+</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_vline</span>(<span class="at">xintercept =</span> evidence_fit<span class="sc">$</span>lambda, <span class="at">linetype =</span> <span class="dv">2</span>)</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>evidence_plot</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="fig-ridge-evidence-objective" class="figure quarto-float quarto-figure quarto-figure-center anchored" style="text-align: center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-ridge-evidence-objective-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="fastqr-guide_files/figure-html/ridge-evidence-objective-1.png" alt="Figure 6: Profile negative marginal log likelihood as a function of the normalized ridge penalty, after profiling the noise variance. A vertical line marks the selected penalty when it is finite. The criterion is shifted by a constant for display." width="100%" class="figure-img">
+<p class="caption">
+Figure 6: Profile negative marginal log likelihood as a function of the normalized ridge penalty, after profiling the noise variance. A vertical line marks the selected penalty when it is finite. The criterion is shifted by a constant for display.
+</p>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-ridge-evidence-objective-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1
+</figcaption>
+</figure>
+</div>
+</section>
+<section id="independent-numerical-checks" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> Independent numerical checks</h1>
+<p>The criterion is verified against a direct Cholesky factorization of the response covariance <span class="math inline">\(C_\lambda\)</span> at several positive penalties. The coefficient calculation is checked against QR of the augmented design with an orthogonally transformed response. A further identity check compares <span class="math inline">\(q_\alpha\)</span> with the sum of squared residuals and the coefficient penalty. These calculations use different numerical representations of the same model.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>evidence_check_table <span class="ot">&lt;-</span> evidence_results<span class="sc">$</span>checks</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>evidence_check_table[, <span class="sc">-</span><span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="fu">lapply</span>(evidence_check_table[, <span class="sc">-</span><span class="dv">1</span>],</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">function</span>(x) <span class="fu">formatC</span>(x, <span class="at">format =</span> <span class="st">"e"</span>, <span class="at">digits =</span> <span class="dv">2</span>))</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(evidence_check_table, <span class="at">row.names =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a> <span class="at">caption =</span> <span class="st">"Agreement of the spectral marginal-likelihood calculation with dense-covariance and augmented-QR references."</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="caption-top table">
+<caption>Agreement of the spectral marginal-likelihood calculation with dense-covariance and augmented-QR references.</caption>
+<colgroup>
+<col style="width: 6%">
+<col style="width: 15%">
+<col style="width: 17%">
+<col style="width: 17%">
+<col style="width: 16%">
+<col style="width: 24%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: right;">lambda</th>
+<th style="text-align: left;">quadratic_error</th>
+<th style="text-align: left;">determinant_error</th>
+<th style="text-align: left;">coefficient_error</th>
+<th style="text-align: left;">derivative_error</th>
+<th style="text-align: left;">penalized_identity_error</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">0.001</td>
+<td style="text-align: left;">1.54e-14</td>
+<td style="text-align: left;">2.76e-15</td>
+<td style="text-align: left;">2.22e-15</td>
+<td style="text-align: left;">2.45e-09</td>
+<td style="text-align: left;">8.55e-16</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">0.100</td>
+<td style="text-align: left;">0.00e+00</td>
+<td style="text-align: left;">1.59e-16</td>
+<td style="text-align: left;">1.80e-15</td>
+<td style="text-align: left;">5.66e-10</td>
+<td style="text-align: left;">0.00e+00</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">2.000</td>
+<td style="text-align: left;">5.24e-16</td>
+<td style="text-align: left;">2.27e-16</td>
+<td style="text-align: left;">6.52e-16</td>
+<td style="text-align: left;">3.43e-10</td>
+<td style="text-align: left;">7.87e-16</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="comparing-marginal-likelihood-and-cross-validation" class="level1" data-number="6">
+<h1 data-number="6"><span class="header-section-number">6</span> Comparing marginal likelihood and cross-validation</h1>
+<p>Both selectors operate on the same training samples and use the same predictor units. The simulation considers <span class="math inline">\((n,p)=(100,40)\)</span> and <span class="math inline">\((60,100)\)</span>, with independent standard-normal predictors and unit noise variance. In the dense scenario, coefficients are generated independently from <span class="math inline">\(N(0,4/p)\)</span>, which matches the spherical prior structure. In the sparse scenario, three coefficients equal two and the remaining coefficients are zero. The latter intentionally departs from that prior. Five independently seeded training samples are generated for each setting, and each sample has an independent test set of four hundred observations.</p>
+<p>For cross-validation, five training folds each receive their own SVD, reused over a common grid of thirty-one penalties from <span class="math inline">\(10^{-4}\)</span> to <span class="math inline">\(10^2\)</span>. The training criterion uses the actual training size <span class="math inline">\(n_{\rm train}\lambda\)</span>, and the validation errors are averaged across folds. After selection, a full-data decomposition provides the coefficients. The spectral CV calculation is checked against <code>qrridge_cv()</code> using the same fold assignment; its maximum discrepancy is 5.11e-15.</p>
+<p>This efficient CV baseline avoids attributing an advantage to marginal likelihood merely because the competing implementation repeats a decomposition at every penalty. Both timing measurements include selection and the final coefficient calculation, with warm-up and three calibrated repetitions. Test-data generation and evaluation are outside the timed regions. The empirical Bayes search is continuous within refined log-penalty intervals, whereas CV selects from a specified finite grid; the two methods also target different statistical criteria.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(evidence_summary, <span class="at">digits =</span> <span class="dv">4</span>, <span class="at">row.names =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a> <span class="at">caption =</span> <span class="st">"Median test-response MSE, mean-prediction MSE and selection time across five simulated training samples per setting. Timings include the necessary decompositions and coefficient recovery."</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="caption-top table">
+<caption>Median test-response MSE, mean-prediction MSE and selection time across five simulated training samples per setting. Timings include the necessary decompositions and coefficient recovery.</caption>
+<colgroup>
+<col style="width: 5%">
+<col style="width: 5%">
+<col style="width: 25%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 25%">
+<col style="width: 16%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">p</th>
+<th style="text-align: left;">signal</th>
+<th style="text-align: left;">method</th>
+<th style="text-align: right;">test_mse</th>
+<th style="text-align: right;">mean_prediction_mse</th>
+<th style="text-align: right;">selection_ms</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">100</td>
+<td style="text-align: right;">40</td>
+<td style="text-align: left;">Dense Gaussian</td>
+<td style="text-align: left;">CV</td>
+<td style="text-align: right;">1.4999</td>
+<td style="text-align: right;">0.6015</td>
+<td style="text-align: right;">2.3125</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">60</td>
+<td style="text-align: right;">100</td>
+<td style="text-align: left;">Dense Gaussian</td>
+<td style="text-align: left;">CV</td>
+<td style="text-align: right;">3.1738</td>
+<td style="text-align: right;">2.2093</td>
+<td style="text-align: right;">3.8750</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">100</td>
+<td style="text-align: right;">40</td>
+<td style="text-align: left;">Sparse coefficients</td>
+<td style="text-align: left;">CV</td>
+<td style="text-align: right;">1.7253</td>
+<td style="text-align: right;">0.6749</td>
+<td style="text-align: right;">2.3125</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">60</td>
+<td style="text-align: right;">100</td>
+<td style="text-align: left;">Sparse coefficients</td>
+<td style="text-align: left;">CV</td>
+<td style="text-align: right;">6.3302</td>
+<td style="text-align: right;">5.2942</td>
+<td style="text-align: right;">3.8750</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">100</td>
+<td style="text-align: right;">40</td>
+<td style="text-align: left;">Dense Gaussian</td>
+<td style="text-align: left;">evidence</td>
+<td style="text-align: right;">1.4847</td>
+<td style="text-align: right;">0.6030</td>
+<td style="text-align: right;">0.6875</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">60</td>
+<td style="text-align: right;">100</td>
+<td style="text-align: left;">Dense Gaussian</td>
+<td style="text-align: left;">evidence</td>
+<td style="text-align: right;">3.2351</td>
+<td style="text-align: right;">2.1852</td>
+<td style="text-align: right;">0.9375</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">100</td>
+<td style="text-align: right;">40</td>
+<td style="text-align: left;">Sparse coefficients</td>
+<td style="text-align: left;">evidence</td>
+<td style="text-align: right;">1.7136</td>
+<td style="text-align: right;">0.6534</td>
+<td style="text-align: right;">0.7031</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">60</td>
+<td style="text-align: right;">100</td>
+<td style="text-align: left;">Sparse coefficients</td>
+<td style="text-align: left;">evidence</td>
+<td style="text-align: right;">6.3284</td>
+<td style="text-align: right;">5.2918</td>
+<td style="text-align: right;">0.9375</td>
+</tr>
+</tbody>
+</table>
+<p>In these simulations, marginal-likelihood selection is computationally faster: its median selection time is between 3.3 and 4.1 times smaller than that of the efficient five-fold CV implementation, depending on the design and signal scenario. Both costs include the required decompositions and recovery of the selected coefficients. This timing result compares two different selection criteria; it is not evidence that the empirical Bayes selector has uniformly lower predictive error. The paired test-set results below show the predictive comparison separately.</p>
+<p><a href="#fig-ridge-evidence-prediction">Figure 7</a> retains the individual simulation results, so the variability hidden by a table of medians remains visible. The test-response error includes irreducible observation noise; the separate mean-prediction error in the table compares predictions with the known conditional mean. The small simulation is illustrative and does not establish that one selector dominates across designs or signal distributions.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>evidence_sim_plot <span class="ot">&lt;-</span> evidence_results<span class="sc">$</span>simulations</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>evidence_sim_plot<span class="sc">$</span>design <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"n = "</span>, evidence_sim_plot<span class="sc">$</span>n, <span class="st">", p = "</span>, evidence_sim_plot<span class="sc">$</span>p)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(evidence_sim_plot,</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a> ggplot2<span class="sc">::</span><span class="fu">aes</span>(method, test_mse, <span class="at">group =</span> repetition)) <span class="sc">+</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a> ggplot2<span class="sc">::</span><span class="fu">geom_line</span>(<span class="at">colour =</span> <span class="st">"grey70"</span>) <span class="sc">+</span> ggplot2<span class="sc">::</span><span class="fu">geom_point</span>(<span class="at">colour =</span> <span class="st">"#b5121b"</span>) <span class="sc">+</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a> ggplot2<span class="sc">::</span><span class="fu">facet_grid</span>(signal <span class="sc">~</span> design, <span class="at">scales =</span> <span class="st">"free_y"</span>) <span class="sc">+</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a> ggplot2<span class="sc">::</span><span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="st">"Test-response mean squared error"</span>) <span class="sc">+</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a> ggplot2<span class="sc">::</span><span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">11</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="fig-ridge-evidence-prediction" class="figure quarto-float quarto-figure quarto-figure-center anchored" style="text-align: center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-ridge-evidence-prediction-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="fastqr-guide_files/figure-html/ridge-evidence-prediction-1.png" alt="Figure 7: Independent-test prediction error for empirical Bayes marginal likelihood and five-fold cross-validation. Each point corresponds to one simulated training sample; lines pair the selectors on the same sample. Panels distinguish design dimensions and coefficient-generating scenarios." width="100%" class="figure-img">
+<p class="caption">
+Figure 7: Independent-test prediction error for empirical Bayes marginal likelihood and five-fold cross-validation. Each point corresponds to one simulated training sample; lines pair the selectors on the same sample. Panels distinguish design dimensions and coefficient-generating scenarios.
+</p>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-ridge-evidence-prediction-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2
+</figcaption>
+</figure>
+</div>
+<p>Boundary outcomes are part of the analysis rather than discarded runs. The following table reports the returned search status for every selector and setting. A CV grid-boundary choice or a finite-search-boundary empirical Bayes choice should prompt a check of the candidate range in a substantive analysis.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>evidence_status <span class="ot">&lt;-</span> <span class="fu">aggregate</span>(<span class="fu">list</span>(<span class="at">count =</span> <span class="fu">rep</span>(<span class="dv">1</span>L, <span class="fu">nrow</span>(evidence_results<span class="sc">$</span>simulations))),</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a> evidence_results<span class="sc">$</span>simulations[, <span class="fu">c</span>(<span class="st">"n"</span>, <span class="st">"p"</span>, <span class="st">"signal"</span>, <span class="st">"method"</span>, <span class="st">"boundary"</span>)], sum)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(evidence_status, <span class="at">row.names =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a> <span class="at">caption =</span> <span class="st">"Observed selection statuses, including finite search boundaries and the null-model limit."</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="caption-top table">
+<caption>Observed selection statuses, including finite search boundaries and the null-model limit.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">p</th>
+<th style="text-align: left;">signal</th>
+<th style="text-align: left;">method</th>
+<th style="text-align: left;">boundary</th>
+<th style="text-align: right;">count</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">100</td>
+<td style="text-align: right;">40</td>
+<td style="text-align: left;">Dense Gaussian</td>
+<td style="text-align: left;">CV</td>
+<td style="text-align: left;">interior</td>
+<td style="text-align: right;">5</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">60</td>
+<td style="text-align: right;">100</td>
+<td style="text-align: left;">Dense Gaussian</td>
+<td style="text-align: left;">CV</td>
+<td style="text-align: left;">interior</td>
+<td style="text-align: right;">5</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">100</td>
+<td style="text-align: right;">40</td>
+<td style="text-align: left;">Sparse coefficients</td>
+<td style="text-align: left;">CV</td>
+<td style="text-align: left;">interior</td>
+<td style="text-align: right;">5</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">60</td>
+<td style="text-align: right;">100</td>
+<td style="text-align: left;">Sparse coefficients</td>
+<td style="text-align: left;">CV</td>
+<td style="text-align: left;">interior</td>
+<td style="text-align: right;">5</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">100</td>
+<td style="text-align: right;">40</td>
+<td style="text-align: left;">Dense Gaussian</td>
+<td style="text-align: left;">evidence</td>
+<td style="text-align: left;">interior</td>
+<td style="text-align: right;">5</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">60</td>
+<td style="text-align: right;">100</td>
+<td style="text-align: left;">Dense Gaussian</td>
+<td style="text-align: left;">evidence</td>
+<td style="text-align: left;">interior</td>
+<td style="text-align: right;">5</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">100</td>
+<td style="text-align: right;">40</td>
+<td style="text-align: left;">Sparse coefficients</td>
+<td style="text-align: left;">evidence</td>
+<td style="text-align: left;">interior</td>
+<td style="text-align: right;">5</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">60</td>
+<td style="text-align: right;">100</td>
+<td style="text-align: left;">Sparse coefficients</td>
+<td style="text-align: left;">evidence</td>
+<td style="text-align: left;">interior</td>
+<td style="text-align: right;">5</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="what-changes-when-data-or-predictors-are-updated" class="level1" data-number="7">
+<h1 data-number="7"><span class="header-section-number">7</span> What changes when data or predictors are updated?</h1>
+<p>The preceding chapter holds a specified penalty fixed while updating a factor. Selecting the penalty again is additional work. A factor for <span class="math inline">\(X^\top X+\alpha_0I_p\)</span> is not also a factor for <span class="math inline">\(X^\top X+\alpha I_p\)</span> when <span class="math inline">\(\alpha\ne\alpha_0\)</span>. An update advantage at a fixed penalty consequently cannot be transferred directly to the complete reselected estimator. This chapter uses a reusable spectral representation for the penalty search and the QR-based package interface to verify the selected fit.</p>
+<p>Likewise, conditional posterior covariance at estimated hyperparameters omits uncertainty about those hyperparameters. A fully Bayesian analysis would specify and average over their posterior distribution. The fixed-penalty smoother trace also remains a conditional complexity measure: after the penalty is selected from the response, it is not automatically the divergence or degrees of freedom of the complete selected fitting rule. These distinctions keep computational reuse, penalty estimation and uncertainty assessment separate and explicit.</p>
+
+
+
+</section>
+
+<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
+<div id="ref-karabatsos.2015" class="csl-entry" role="listitem">
+Karabatsos, George. 2015. <span>“Fast Marginal Likelihood Estimation of the Ridge Parameter(s) in Ridge Regression and Generalized Ridge Regression for Big Data.”</span> <a href="https://doi.org/10.48550/arXiv.1409.2437">https://doi.org/10.48550/arXiv.1409.2437</a>.
+</div>
+<div id="ref-rasmussen_williams.2006" class="csl-entry" role="listitem">
+Rasmussen, Carl Edward, and Christopher K. I. Williams. 2006. <em>Gaussian Processes for Machine Learning</em>. The MIT Press. <a href="https://gaussianprocess.org/gpml/">https://gaussianprocess.org/gpml/</a>.
+</div>
+</div></section></div></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+        const codeEl = trigger.previousElementSibling.cloneNode(true);
+        for (const childEl of codeEl.children) {
+          if (isCodeAnnotation(childEl)) {
+            childEl.remove();
+          }
+        }
+        return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>fastQR · Fast QR decomposition and update</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+<p>Worked examples · Version 1.1.6</p>
+</div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

@@ -132,6 +132,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <a class="nav-link" href="./index.html"> 
 <span class="menu-text">Overview</span></a>
   </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./theory.html"> 
+<span class="menu-text">Theory</span></a>
+  </li>  
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-tutorials" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Tutorials</span>
@@ -149,15 +153,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <a class="dropdown-item" href="./regression.html">
  <span class="dropdown-text">Regression and ridge paths</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./ridge-evidence.html">
+ <span class="dropdown-text">Ridge by marginal likelihood</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ridge-updates.html">
+ <span class="dropdown-text">Ridge with growing designs</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item">
     <a class="nav-link" href="./accuracy.html"> 
 <span class="menu-text">Accuracy and timing</span></a>
-  </li>  
-  <li class="nav-item">
-    <a class="nav-link" href="./theory.html"> 
-<span class="menu-text">Theory</span></a>
   </li>  
   <li class="nav-item">
     <a class="nav-link active" href="./reference.html" aria-current="page"> 
@@ -179,11 +187,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#decomposition-and-extraction" id="toc-decomposition-and-extraction" class="nav-link active" data-scroll-target="#decomposition-and-extraction"><span class="header-section-number">1</span> Decomposition and extraction</a></li>
-  <li><a href="#change-the-design" id="toc-change-the-design" class="nav-link" data-scroll-target="#change-the-design"><span class="header-section-number">2</span> Change the design</a></li>
-  <li><a href="#solve-and-estimate" id="toc-solve-and-estimate" class="nav-link" data-scroll-target="#solve-and-estimate"><span class="header-section-number">3</span> Solve and estimate</a>
+  <li><a href="#reading-an-interface-in-context" id="toc-reading-an-interface-in-context" class="nav-link active" data-scroll-target="#reading-an-interface-in-context"><span class="header-section-number">1</span> Reading an interface in context</a></li>
+  <li><a href="#decomposition-and-extraction" id="toc-decomposition-and-extraction" class="nav-link" data-scroll-target="#decomposition-and-extraction"><span class="header-section-number">2</span> Decomposition and extraction</a></li>
+  <li><a href="#change-the-design" id="toc-change-the-design" class="nav-link" data-scroll-target="#change-the-design"><span class="header-section-number">3</span> Change the design</a></li>
+  <li><a href="#solve-and-estimate" id="toc-solve-and-estimate" class="nav-link" data-scroll-target="#solve-and-estimate"><span class="header-section-number">4</span> Solve and estimate</a>
   <ul class="collapse">
-  <li><a href="#scope-of-the-regression-examples" id="toc-scope-of-the-regression-examples" class="nav-link" data-scroll-target="#scope-of-the-regression-examples"><span class="header-section-number">3.1</span> Scope of the regression examples</a></li>
+  <li><a href="#orthogonal-transformations-and-coefficient-coordinates" id="toc-orthogonal-transformations-and-coefficient-coordinates" class="nav-link" data-scroll-target="#orthogonal-transformations-and-coefficient-coordinates"><span class="header-section-number">4.1</span> Orthogonal transformations and coefficient coordinates</a></li>
+  <li><a href="#model-specification-and-validation" id="toc-model-specification-and-validation" class="nav-link" data-scroll-target="#model-specification-and-validation"><span class="header-section-number">4.2</span> Model specification and validation</a></li>
+  <li><a href="#scope-of-the-regression-examples" id="toc-scope-of-the-regression-examples" class="nav-link" data-scroll-target="#scope-of-the-regression-examples"><span class="header-section-number">4.3</span> Scope of the regression examples</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -210,9 +221,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>This is a task-oriented guide, not a replacement for <code>help()</code> in the installed package. The tutorials validate the particular code paths shown with fastQR 1.1.5.</p>
-<section id="decomposition-and-extraction" class="level2" data-number="1">
-<h2 data-number="1" class="anchored" data-anchor-id="decomposition-and-extraction"><span class="header-section-number">1</span> Decomposition and extraction</h2>
+<p>This is a task-oriented guide, not a replacement for <code>help()</code> in the installed package. The tutorials validate the particular code paths shown with fastQR 1.1.6.</p>
+<section id="reading-an-interface-in-context" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="reading-an-interface-in-context"><span class="header-section-number">1</span> Reading an interface in context</h2>
+<p>A function name identifies an interface, but the matrix being factorized and the information returned still depend on the task. An explicit decomposition of X supplies factors that reconstruct that design. A compact decomposition stores transformations defining the orthogonal factor. A regression routine uses such calculations within a model-fitting procedure and can return factors of a working system instead of the original design.</p>
+<p>This distinction is particularly relevant for ridge. With <code>type = "QR"</code>, the returned Q and R factorize the normalized penalized system. With <code>type = "R"</code>, the triangular factor comes from an augmented design and satisfies a different cross-product identity. The coefficient vectors solve the same normalized ridge problem, but their intermediate factors should not be interchanged as though they described the same matrix.</p>
+</section>
+<section id="decomposition-and-extraction" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="decomposition-and-extraction"><span class="header-section-number">2</span> Decomposition and extraction</h2>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 50%">
@@ -259,10 +275,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 </tbody>
 </table>
+<p>For a tall design, the upper triangular part of the leading square block in <code>qr_fast()</code> output contains R. Entries below the diagonal store Householder-vector information, while <code>qraux</code> stores the corresponding transformation coefficients. Those entries are part of a compact representation, rather than a reconstruction error left below the triangle. The extraction helpers interpret that storage and apply the transformations when explicit factors are needed.</p>
 <p>The <a href="./decompositions.html">decomposition tutorial</a> explains the permutation convention. Use <code>fastQR::qr()</code> and <code>base::qr()</code> explicitly when comparing implementations.</p>
 </section>
-<section id="change-the-design" class="level2" data-number="2">
-<h2 data-number="2" class="anchored" data-anchor-id="change-the-design"><span class="header-section-number">2</span> Change the design</h2>
+<section id="change-the-design" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="change-the-design"><span class="header-section-number">3</span> Change the design</h2>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -295,9 +312,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 <p>For row batches, the examples supply a <code>p</code> by <code>m</code> matrix, with each new observation stored in a column. QR insertion uses a one-based position. R-only insertion of predictors appends columns to the right.</p>
+<p>The orientation follows the algebra. A batch of new observations contributes <code>U %*% t(U)</code> to the predictor cross-product matrix, whereas new predictor columns require cross-products with the existing observations. For an R-only row deletion, the values of the removed observations are supplied because their contributions must be subtracted. For a QR deletion by position, the current complete factors also encode the relevant observation geometry. These are different input conventions for related matrix operations.</p>
 </section>
-<section id="solve-and-estimate" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="solve-and-estimate"><span class="header-section-number">3</span> Solve and estimate</h2>
+<section id="solve-and-estimate" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="solve-and-estimate"><span class="header-section-number">4</span> Solve and estimate</h2>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 50%">
@@ -324,7 +342,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="even">
 <td style="text-align: left;"><code>qrridge()</code></td>
-<td style="text-align: left;">Ridge at a scalar penalty; the tutorial uses <code>type = "QR"</code></td>
+<td style="text-align: left;">Ridge at a scalar penalty with either <code>QR</code> or <code>R</code></td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;"><code>qrmridge()</code></td>
@@ -332,7 +350,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="even">
 <td style="text-align: left;"><code>qrridge_cv()</code>, <code>qrmridge_cv()</code></td>
-<td style="text-align: left;">Packaged cross-validation interfaces; see scope below</td>
+<td style="text-align: left;">Native CV with reproducible folds and a final refit</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;"><code>qr_coef()</code>, <code>qr_fitted()</code>, <code>qr_resid()</code></td>
@@ -352,11 +370,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 </tbody>
 </table>
-<section id="scope-of-the-regression-examples" class="level3" data-number="3.1">
-<h3 data-number="3.1" class="anchored" data-anchor-id="scope-of-the-regression-examples"><span class="header-section-number">3.1</span> Scope of the regression examples</h3>
-<p>The worked ridge and CV examples use <code>qrridge(..., type = "QR")</code> with an explicit fold loop. That loop makes training-fold scaling and the normalized penalty visible and reproducible. The native CV routines, the ridge <code>type = "R"</code> route and the multiple-response ridge routines are not validated recommendations in this guide. In particular, numerical checks of the first two uncovered discrepancies requiring a separate implementation review.</p>
+<section id="orthogonal-transformations-and-coefficient-coordinates" class="level3" data-number="4.1">
+<h3 data-number="4.1" class="anchored" data-anchor-id="orthogonal-transformations-and-coefficient-coordinates"><span class="header-section-number">4.1</span> Orthogonal transformations and coefficient coordinates</h3>
+<p>The products returned by <code>qr_Qty()</code> and <code>qr_Qy()</code> use the complete orthogonal transformation encoded by the compact factors. Their input vector has n entries, and their output also has n entries. For a tall full-column-rank design, the first p coordinates of the complete transformed response agree with the thin projection <code>crossprod(Q1, y)</code>. A subsequent triangular solve is still required to obtain p regression coefficients.</p>
+<p>The <code>qr_lse_Qty()</code> and <code>qr_lse_Qy()</code> helpers construct the factorization internally and apply the corresponding complete transformation. This separates multiplication by an orthogonal factor from projection onto a fitted column space: the least-squares fitted response uses both stages, Q1 transpose followed by Q1, while a coefficient vector uses the projection followed by the triangular solve. Keeping track of those dimensions makes the similarly named operations easier to distinguish.</p>
+</section>
+<section id="model-specification-and-validation" class="level3" data-number="4.2">
+<h3 data-number="4.2" class="anchored" data-anchor-id="model-specification-and-validation"><span class="header-section-number">4.2</span> Model specification and validation</h3>
+<p>The model-fitting functions receive numeric designs rather than formula objects. A column of ones must be supplied when an intercept is part of the design, and ridge penalizes that column unless the intercept is handled separately by centering. A fixed-penalty fit and a validation procedure are also different operations: the first estimates coefficients at a supplied value, while the second compares held-out prediction losses and then refits at a selected value.</p>
+<p>Prediction designs must reproduce the training column definitions and ordering. When preprocessing is estimated from data, the transformation used for a validation observation must be learned from its training fold; the transformation for a final test prediction is learned from the complete training sample. The explicit validation loop illustrates these distinctions before the native CV interfaces are introduced.</p>
+</section>
+<section id="scope-of-the-regression-examples" class="level3" data-number="4.3">
+<h3 data-number="4.3" class="anchored" data-anchor-id="scope-of-the-regression-examples"><span class="header-section-number">4.3</span> Scope of the regression examples</h3>
+<p>The regression chapter checks both ridge backends and the univariate and multivariate cross-validation interfaces against independent augmented-design QR calculations. It also retains an explicit fold loop for examples that estimate centering and scaling within each training fold. These procedures have different preprocessing and intercept conventions; the distinction is explained before the native CV example.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">help</span>(<span class="st">"qrupdate"</span>, <span class="at">package =</span> <span class="st">"fastQR"</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">help</span>(<span class="st">"qrridge"</span>, <span class="at">package =</span> <span class="st">"fastQR"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>The positive-penalty ridge interfaces, including cross-validation, also accept more predictors than observations. See <a href="./ridge-updates.html">Ridge with growing designs</a> for augmented-design updates and the distinction between fixed total and normalized penalties. Ordinary least-squares interfaces retain their full-column-rank restrictions.</p>
 
 
 </section>
@@ -772,7 +801,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       &nbsp;
     </div>
     <div class="nav-footer-right">
-<p>Worked examples · Version 1.1.5</p>
+<p>Worked examples · Version 1.1.6</p>
 </div>
   </div>
 </footer>

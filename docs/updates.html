@@ -161,6 +161,10 @@ window.Quarto = {
     <a class="nav-link" href="./index.html"> 
 <span class="menu-text">Overview</span></a>
   </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./theory.html"> 
+<span class="menu-text">Theory</span></a>
+  </li>  
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-tutorials" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Tutorials</span>
@@ -178,15 +182,19 @@ window.Quarto = {
     <a class="dropdown-item" href="./regression.html">
  <span class="dropdown-text">Regression and ridge paths</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./ridge-evidence.html">
+ <span class="dropdown-text">Ridge by marginal likelihood</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ridge-updates.html">
+ <span class="dropdown-text">Ridge with growing designs</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item">
     <a class="nav-link" href="./accuracy.html"> 
 <span class="menu-text">Accuracy and timing</span></a>
-  </li>  
-  <li class="nav-item">
-    <a class="nav-link" href="./theory.html"> 
-<span class="menu-text">Theory</span></a>
   </li>  
   <li class="nav-item">
     <a class="nav-link" href="./reference.html"> 
@@ -238,7 +246,8 @@ window.Quarto = {
 
 
 <!-- Generato da chapters/updates.Rmd: modificare quel file, poi source("build.R"). -->
-<p>Suppose a design has already been factorized and a small batch of observations arrives. Recomputing the factorization discards the previous work. <code>qrupdate()</code> and <code>qrdowndate()</code> instead modify the existing factors. The corresponding <code>rupdate()</code> and <code>rdowndate()</code> routines retain only the triangular factor.</p>
+<p>Many statistical calculations involve a sequence of designs that differ by only a few observations or predictors. A moving-window analysis, for example, repeatedly removes the oldest observation and includes a new one. Recomputing a factorization at every step repeats work on the part of the design that has not changed.</p>
+<p>Updating and downdating use the existing factors to incorporate that local change. The choice of representation remains important: <code>qrupdate()</code> and <code>qrdowndate()</code> modify QR factors, whereas <code>rupdate()</code> and <code>rdowndate()</code> retain only the triangular information. The examples first examine individual insertions and deletions, where the resulting design is easy to reconstruct, before combining the operations in a repeated regression calculation.</p>
 <section id="insert-and-remove-observations" class="level1" data-number="1">
 <h1 data-number="1"><span class="header-section-number">1</span> Insert and remove observations</h1>
 <p>We use full factors as inputs to the QR update routines in these examples. A batch containing <span class="math inline">\(m\)</span> new rows is supplied as a <strong><span class="math inline">\(p\times m\)</span> matrix</strong> <code>U</code>: its transpose is appended to the design. The position <code>k</code> is one-based; <code>k = n + 1</code> appends observations.</p>
@@ -282,10 +291,12 @@ window.Quarto = {
 </tbody>
 </table>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">max</span>(row_checks) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Removing the same rows restores the original design, but need not restore identical factor entries. The product is the relevant check. Before downdating, ensure that the remaining design still has full column rank.</p>
+<p>Removing the same observations restores the original design, although it need not reproduce the original factor entries: signs and orthogonal completions can differ while representing the same matrix. Reconstruction therefore provides the relevant check. A downdated QR representation can also exist after a loss of rank, but a unique ordinary least-squares coefficient vector then requires additional treatment. The remaining design should be checked before its triangular factor is used in an unpivoted regression solve.</p>
 </section>
 <section id="insert-and-remove-predictors" class="level1" data-number="2">
 <h1 data-number="2"><span class="header-section-number">2</span> Insert and remove predictors</h1>
+<p>Adding a predictor changes the column space that a regression model can use. If V contains new columns, their components along the existing basis are <span class="math inline">\(Q_1^\top V\)</span>, while <span class="math inline">\((I_n-Q_1Q_1^\top)V\)</span> contains directions not already represented by X. A column-update algorithm incorporates those components and restores a triangular factor for the enlarged design. If the residual directions are dependent, the enlarged matrix does not acquire one independent direction per new column.</p>
+<p>The insertion position changes the order of the predictors, so reconstruction is checked against a design assembled in exactly that order. Column deletion reverses the structural change, but the returned factors need not have the same entries as the starting factors.</p>
 <p>For columns, <code>U</code> has the same number of rows as the design. Here two new predictors are inserted before column 3 and then removed from those same positions.</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>V <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n <span class="sc">*</span> <span class="dv">2</span>L), n, <span class="dv">2</span>L)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>k <span class="ot">&lt;-</span> <span class="dv">3</span>L</span>
@@ -305,6 +316,10 @@ window.Quarto = {
 X_{\mathrm{new}}^\top X_{\mathrm{new}}=X^\top X+UU^\top
 =R^\top R+UU^\top.
 \]</span> <code>rupdate()</code> returns a new triangular factor satisfying this identity, without returning <span class="math inline">\(Q\)</span>. To delete those rows, <code>rdowndate()</code> takes their values in <code>U</code> rather than their positions.</p>
+<p>For predictor insertion, the required cross-products have a different structure. Appending <span class="math inline">\(V\in\mathbb R^{n\times m}\)</span> gives <span class="math display">\[
+[X,V]^\top[X,V]
+=\begin{pmatrix}R^\top R&amp;X^\top V\\V^\top X&amp;V^\top V\end{pmatrix}.
+\]</span> The old factor determines the upper-left block, but it does not contain the cross-products between X and the new predictors. This is why the R-only column-update interface also receives the design values. For row deletion, the values of the observations being removed determine the subtraction <span class="math inline">\(UU^\top\)</span>; their positions alone would not supply that information.</p>
 <div class="sourceCode" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>R_initial <span class="ot">&lt;-</span> initial<span class="sc">$</span>R[<span class="fu">seq_len</span>(p), , drop <span class="ot">=</span> <span class="cn">FALSE</span>]</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>R_added <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">rupdate</span>(X, R_initial, <span class="at">U =</span> U, <span class="at">type =</span> <span class="st">"row"</span>, <span class="at">fast =</span> <span class="cn">FALSE</span>)</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>R_removed <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">rdowndate</span>(R_added, <span class="at">U =</span> U, <span class="at">type =</span> <span class="st">"row"</span>, <span class="at">fast =</span> <span class="cn">FALSE</span>)</span>
@@ -352,7 +367,12 @@ X_{\mathrm{new}}^\top X_{\mathrm{new}}=X^\top X+UU^\top
 <h1 data-number="4"><span class="header-section-number">4</span> A sliding-window regression</h1>
 <p>A moving window provides a statistical example of repeated updating and downdating. At each step we discard the oldest observation and append a new one. In addition to <span class="math inline">\(R\)</span>, we maintain <span class="math inline">\(h=X^\top y\)</span>. The regression coefficient vector solves <span class="math display">\[
 R^\top z=h,\qquad R\widehat\beta=z.
-\]</span> <strong>Both triangular solves are needed</strong>; solving only <span class="math inline">\(R\widehat\beta=h\)</span> does not solve the normal equations.</p>
+\]</span> The first solve is lower triangular because it uses <span class="math inline">\(R^\top\)</span>; in R it is <code>forwardsolve(t(R), h)</code>. The result is then passed to <code>backsolve(R, ...)</code>. These are the two stages of solving <span class="math inline">\(R^\top R\widehat\beta=h\)</span>. Solving only <span class="math inline">\(R\widehat\beta=h\)</span> would use a different system and would not recover the least-squares coefficients.</p>
+<p>When one observation <span class="math inline">\((x_{\mathrm{old}}^\top,y_{\mathrm{old}})\)</span> is removed and another is inserted, the response cross-product changes through <span class="math display">\[
+h_{\mathrm{new}}
+=h_{\mathrm{old}}-x_{\mathrm{old}}y_{\mathrm{old}}
++x_{\mathrm{new}}y_{\mathrm{new}}.
+\]</span> Here each x on the right is a p-dimensional column vector. The code stores the corresponding design rows, so <code>crossprod(old_x, old_y)</code> and <code>crossprod(new_x, new_y)</code> construct these contributions in the required shape. Maintaining h makes the updated triangular factor usable for regression without recomputing the full response cross-product.</p>
 <p>The simulation below keeps 100 observations in the window and processes 30 replacements. An intercept is included explicitly. At every step we compare the updated solution with a fresh <code>lm.fit()</code> fit.</p>
 <div class="sourceCode" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2028</span>)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>window <span class="ot">&lt;-</span> <span class="dv">100</span>L</span>
@@ -406,6 +426,7 @@ R^\top z=h,\qquad R\widehat\beta=z.
 </tr>
 </tbody>
 </table>
+<p>The coefficient trajectories in <a href="#fig-sliding-path">Figure 1</a> show how the fitted model changes as observations enter and leave the window. Each updated trajectory is paired with a fresh least-squares fit on exactly the same observations. Their overlap checks the repeated-update calculation; variation along the horizontal axis reflects changes in the data window, rather than a different estimator.</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>path_data <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">step =</span> <span class="fu">rep</span>(<span class="fu">seq_len</span>(steps), p), <span class="at">coefficient =</span> <span class="fu">factor</span>(<span class="fu">rep</span>(<span class="fu">seq_len</span>(p), <span class="at">each =</span> steps)),</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>             <span class="at">estimate =</span> <span class="fu">as.vector</span>(coef_update), <span class="at">method =</span> <span class="st">"Updated factors"</span>),</span>
@@ -417,11 +438,18 @@ R^\top z=h,\qquad R\widehat\beta=z.
 <span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">scale_linetype_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Fresh fit"</span> <span class="ot">=</span> <span class="st">"dashed"</span>, <span class="st">"Updated factors"</span> <span class="ot">=</span> <span class="st">"solid"</span>)) <span class="sc">+</span></span>
 <span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Window replacement"</span>, <span class="at">y =</span> <span class="st">"Coefficient estimate"</span>, <span class="at">colour =</span> <span class="st">"Coefficient"</span>,</span>
 <span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>                <span class="at">linetype =</span> <span class="cn">NULL</span>) <span class="sc">+</span> ggplot2<span class="sc">::</span><span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="figure" style="text-align: center">
-<img src="fastqr-guide_files/figure-html/sliding-path-1.png" alt="Coefficient estimates as the window advances. Solid lines use updated factors; dashed lines are fresh least-squares fits. The two computations agree to numerical precision." width="100%">
+<div id="fig-sliding-path" class="figure quarto-float quarto-figure quarto-figure-center anchored" style="text-align: center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-sliding-path-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="fastqr-guide_files/figure-html/sliding-path-1.png" alt="Figure 1: Coefficient estimates as the window advances. Solid lines use updated factors; dashed lines are fresh least-squares fits. The two computations agree to numerical precision." width="100%" class="figure-img">
 <p class="caption">
-Coefficient estimates as the window advances. Solid lines use updated factors; dashed lines are fresh least-squares fits. The two computations agree to numerical precision.
+Figure 1: Coefficient estimates as the window advances. Solid lines use updated factors; dashed lines are fresh least-squares fits. The two computations agree to numerical precision.
 </p>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-sliding-path-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1
+</figcaption>
+</figure>
 </div>
 <p>This example illustrates the algorithm, not a claim about universal speed or long-run stability. Over long sequences, monitor reconstruction or Gram errors and consider periodic refactorization. Maintaining only <span class="math inline">\(R\)</span> avoids storing <span class="math inline">\(Q\)</span>, but this particular example retains the data window so that observations can be deleted and reference fits checked.</p>
 
@@ -838,7 +866,7 @@ Coefficient estimates as the window advances. Solid lines use updated factors; d
       &nbsp;
     </div>
     <div class="nav-footer-right">
-<p>Worked examples · Version 1.1.5</p>
+<p>Worked examples · Version 1.1.6</p>
 </div>
   </div>
 </footer>

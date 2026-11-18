@@ -181,6 +181,10 @@ window.Quarto = {
     <a class="nav-link" href="./index.html"> 
 <span class="menu-text">Overview</span></a>
   </li>  
+  <li class="nav-item">
+    <a class="nav-link active" href="./theory.html" aria-current="page"> 
+<span class="menu-text">Theory</span></a>
+  </li>  
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-tutorials" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Tutorials</span>
@@ -198,15 +202,19 @@ window.Quarto = {
     <a class="dropdown-item" href="./regression.html">
  <span class="dropdown-text">Regression and ridge paths</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./ridge-evidence.html">
+ <span class="dropdown-text">Ridge by marginal likelihood</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ridge-updates.html">
+ <span class="dropdown-text">Ridge with growing designs</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item">
     <a class="nav-link" href="./accuracy.html"> 
 <span class="menu-text">Accuracy and timing</span></a>
-  </li>  
-  <li class="nav-item">
-    <a class="nav-link active" href="./theory.html" aria-current="page"> 
-<span class="menu-text">Theory</span></a>
   </li>  
   <li class="nav-item">
     <a class="nav-link" href="./reference.html"> 
@@ -264,10 +272,30 @@ window.Quarto = {
 <p>The computational ideas in this guide build on standard orthogonal factorizations and their modification after changes to a matrix. For full treatments, see <span class="citation" data-cites="golub_van_loan.2013">Golub and Van Loan (<a href="#ref-golub_van_loan.2013" role="doc-biblioref">2013</a>)</span> and <span class="citation" data-cites="bjorck.2015">Björck (<a href="#ref-bjorck.2015" role="doc-biblioref">2015</a>)</span>; for least-squares algorithms, see <span class="citation" data-cites="bjorck.2024">Björck (<a href="#ref-bjorck.2024" role="doc-biblioref">2024</a>)</span>. The package authors develop updating methods and statistical applications in <span class="citation" data-cites="bernardi_etal.2024">Bernardi, Busatto, and Cattelan (<a href="#ref-bernardi_etal.2024" role="doc-biblioref">2024</a>)</span>.</p>
 <section id="why-orthogonal-transformations" class="level1" data-number="1">
 <h1 data-number="1"><span class="header-section-number">1</span> Why orthogonal transformations?</h1>
-<p>Multiplication by a square orthogonal matrix preserves the Euclidean norm. If <span class="math inline">\(X=Q_1R_1\)</span> and <span class="math inline">\(Q=[Q_1,Q_2]\)</span> is a full orthogonal completion, then <span class="math display">\[
+<p>Consider the full-column-rank least-squares problem <span class="math display">\[
+\widehat\beta=\arg\min_{b\in\mathbb R^p}\|y-Xb\|_2^2,
+\qquad X\in\mathbb R^{n\times p},\quad y\in\mathbb R^n,\quad n\ge p.
+\]</span> The thin factorization <span class="math inline">\(X=Q_1R_1\)</span> separates an orthonormal basis <span class="math inline">\(Q_1\)</span> for the column space from the coordinates stored in the triangular matrix <span class="math inline">\(R_1\)</span>. Complete that basis to <span class="math inline">\(Q=[Q_1,Q_2]\)</span>, so that <span class="math inline">\(Q^\top Q=I_n\)</span>. Orthogonal multiplication preserves Euclidean length, and <span class="math display">\[
+Q^\top(y-Xb)
+=\begin{pmatrix}Q_1^\top y-R_1b\\Q_2^\top y\end{pmatrix}.
+\]</span> Taking squared lengths gives <span class="math display">\[
 \|y-Xb\|_2^2
 =\|Q_1^\top y-R_1b\|_2^2+\|Q_2^\top y\|_2^2.
-\]</span> The second term does not depend on <span class="math inline">\(b\)</span>. For a full-rank design, the least-squares solution is obtained by solving <span class="math inline">\(R_1\widehat\beta=Q_1^\top y\)</span>. This avoids explicitly inverting a matrix.</p>
+\]</span> The second term is unchanged when <span class="math inline">\(b\)</span> changes. Because <span class="math inline">\(R_1\)</span> is nonsingular, the first term can be made zero by solving <span class="math display">\[
+c=Q_1^\top y\in\mathbb R^p,
+\qquad R_1\widehat\beta=c.
+\]</span> These are the two computational stages of a direct QR least-squares solve: project the response onto the orthonormal basis, then recover its coordinates relative to the original columns of <span class="math inline">\(X\)</span>. In R, the projection is <code>crossprod(Q1, y)</code> and the triangular solution is <code>backsolve(R1, c)</code>. No inverse of <span class="math inline">\(R_1\)</span> is formed.</p>
+<p>The triangular structure determines the order of the solve. The last equation gives <span class="math inline">\(\widehat\beta_p=c_p/r_{pp}\)</span>; the preceding equations are recovered backwards through <span class="math display">\[
+\widehat\beta_j
+=\frac{c_j-\sum_{k=j+1}^p r_{jk}\widehat\beta_k}{r_{jj}},
+\qquad j=p-1,\ldots,1.
+\]</span> The nonzero diagonal entries required here follow from full column rank. The fitted response and residual are <span class="math display">\[
+\widehat y=Q_1Q_1^\top y,
+\qquad e=y-\widehat y=(I_n-Q_1Q_1^\top)y.
+\]</span> Thus <span class="math inline">\(Q_1^\top e=0\)</span>: the residual is orthogonal to every direction used to construct the fit. This identity supplies a useful numerical check in addition to agreement between coefficient vectors.</p>
+<p>If only <span class="math inline">\(R_1\)</span> and <span class="math inline">\(h=X^\top y\)</span> are retained, the same coefficients follow from <span class="math inline">\(R_1^\top R_1\widehat\beta=h\)</span>. The calculation then requires a forward solve followed by a backward solve, <span class="math display">\[
+R_1^\top z=h,\qquad R_1\widehat\beta=z.
+\]</span> In exact arithmetic, <span class="math inline">\(z=Q_1^\top y\)</span>, since <span class="math inline">\(X^\top y=R_1^\top Q_1^\top y\)</span>. This relation explains why an R-only representation can support regression, and why the right-hand side has to be maintained alongside the factor. The numerical consequences of forming cross-products are examined in the accuracy chapter <span class="citation" data-cites="golub_van_loan.2013 bjorck.2024">(<a href="#ref-golub_van_loan.2013" role="doc-biblioref">Golub and Van Loan 2013</a>; <a href="#ref-bjorck.2024" role="doc-biblioref">Björck 2024</a>)</span>.</p>
 </section>
 <section id="classical-and-modified-gramschmidt" class="level1" data-number="2">
 <h1 data-number="2"><span class="header-section-number">2</span> Classical and modified Gram–Schmidt</h1>
@@ -281,7 +309,8 @@ r_{kk}&amp;=\|v_k\|_2,\qquad q_k=v_k/r_{kk}.
 <p>Modified Gram–Schmidt instead starts with <span class="math inline">\(v=x_k\)</span> and, for <span class="math inline">\(j=1,\ldots,k-1\)</span>, successively computes <span class="math display">\[
 r_{jk}=q_j^\top v,\qquad v\leftarrow v-r_{jk}q_j;
 \]</span> it then sets <span class="math inline">\(r_{kk}=\|v\|_2\)</span> and <span class="math inline">\(q_k=v/r_{kk}\)</span>. The two algorithms are equivalent in exact arithmetic, but their floating-point behavior differs: computing projections from the updated residual generally reduces loss of orthogonality. Reorthogonalization may still be needed for difficult problems <span class="citation" data-cites="golub_van_loan.2013 bjorck.2015">(<a href="#ref-golub_van_loan.2013" role="doc-biblioref">Golub and Van Loan 2013</a>; <a href="#ref-bjorck.2015" role="doc-biblioref">Björck 2015</a>)</span>.</p>
-<p>The following educational implementation checks both defining identities on a well-conditioned example; it is not a replacement for the package’s factorization routines.</p>
+<p>At each step, the inner products describe the part of the current column already explained by the existing basis. Subtracting those components leaves a residual direction; normalizing that residual supplies the next basis vector. The recorded coefficients give the identity <span class="math inline">\(x_k=\sum_{j\le k}q_jr_{jk}\)</span>, so the construction produces both factors rather than Q alone.</p>
+<p>The following educational implementation follows the modified scheme. Its diagonal check detects a residual that is too small relative to the input column to normalize reliably. That check is useful for understanding the algorithm, but it is not a general rank-revealing procedure. The example checks reconstruction and orthogonality separately on a well-conditioned design.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>mgs <span class="ot">&lt;-</span> <span class="cf">function</span>(X) {</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  n <span class="ot">&lt;-</span> <span class="fu">nrow</span>(X); p <span class="ot">&lt;-</span> <span class="fu">ncol</span>(X)</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  Q <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, n, p); R <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, p, p)</span>
@@ -310,19 +339,32 @@ r_{jk}=q_j^\top v,\qquad v\leftarrow v-r_{jk}q_j;
 </section>
 <section id="householder-transformations-and-givens-rotations" class="level1" data-number="3">
 <h1 data-number="3"><span class="header-section-number">3</span> Householder transformations and Givens rotations</h1>
-<p>A Householder reflector has the form <span class="math display">\[
-H=I-2vv^\top/(v^\top v),\qquad v\ne0.
-\]</span> It is symmetric and orthogonal and can eliminate all entries below a selected diagonal entry in a column. A sequence of reflectors produces an upper triangular factor. Compact storage keeps the information defining these reflectors instead of storing every entry of <span class="math inline">\(Q\)</span>.</p>
-<p>A Givens rotation acts on two coordinates through the block <span class="math display">\[
-\begin{pmatrix}c&amp;s\\-s&amp;c\end{pmatrix},\qquad c^2+s^2=1.
-\]</span> Choosing <span class="math inline">\(c=a/\sqrt{a^2+b^2}\)</span> and <span class="math inline">\(s=b/\sqrt{a^2+b^2}\)</span> maps <span class="math inline">\((a,b)^\top\)</span> to <span class="math inline">\((\sqrt{a^2+b^2},0)^\top\)</span> when <span class="math inline">\((a,b)\ne(0,0)\)</span>. Rotations can restore triangular structure after localized changes. Both algorithms exploit orthogonal transformations; neither makes an ill-conditioned statistical problem intrinsically well conditioned.</p>
+<p>Gram–Schmidt constructs basis vectors by successive projections. Householder QR instead transforms the matrix into triangular form using reflections. For a nonzero vector <span class="math inline">\(v\)</span>, the matrix <span class="math display">\[
+H=I-2vv^\top/(v^\top v)
+\]</span> is symmetric and satisfies <span class="math inline">\(H^\top H=I\)</span>. For a column segment <span class="math inline">\(x\)</span>, a reflector can be chosen so that <span class="math inline">\(Hx=\alpha e_1\)</span>, eliminating every entry of that segment except its first. Applying such a transformation to successive trailing submatrices removes the entries below the diagonal without changing Euclidean lengths.</p>
+<p>If the embedded reflections satisfy <span class="math inline">\(H_s\cdots H_1X=R\)</span>, then <span class="math display">\[
+X=QR,\qquad Q=H_1\cdots H_s,
+\]</span> with the full or thin factors selected as required. Each reflection is represented by a vector and a coefficient, so its action can be applied without storing a dense matrix H. Compact Householder output retains that information. Forming Q, multiplying by Q and multiplying by its transpose are related operations, but need not incur the same storage cost.</p>
+<p>A Givens rotation acts on just two coordinates. With <span class="math display">\[
+G=\begin{pmatrix}c&amp;s\\-s&amp;c\end{pmatrix},\qquad c^2+s^2=1,
+\]</span> choosing <span class="math inline">\(c=a/\sqrt{a^2+b^2}\)</span> and <span class="math inline">\(s=b/\sqrt{a^2+b^2}\)</span> gives <span class="math display">\[
+G\begin{pmatrix}a\\b\end{pmatrix}
+=\begin{pmatrix}\sqrt{a^2+b^2}\\0\end{pmatrix}
+\]</span> when <span class="math inline">\((a,b)\ne(0,0)\)</span>. Implementations compute the rotation parameters with appropriate numerical safeguards. Because a rotation changes only a pair of coordinates, a sequence of rotations can restore triangular form after a local insertion or deletion.</p>
+<p>Both constructions use orthogonal transformations to control the propagation of rounding error. They do not remove sensitivity already present in a nearly singular design. The distinction between an accurate factorization and an accurate coefficient vector is therefore retained throughout the numerical experiments <span class="citation" data-cites="golub_van_loan.2013 bjorck.2015">(<a href="#ref-golub_van_loan.2013" role="doc-biblioref">Golub and Van Loan 2013</a>; <a href="#ref-bjorck.2015" role="doc-biblioref">Björck 2015</a>)</span>.</p>
 </section>
 <section id="what-a-row-update-changes" class="level1" data-number="4">
 <h1 data-number="4"><span class="header-section-number">4</span> What a row update changes</h1>
-<p>Write a batch of new observations as <span class="math inline">\(U^\top\)</span>, with <span class="math inline">\(U\in\mathbb R^{p\times m}\)</span>. Starting with <span class="math inline">\(X=Q_1R_1\)</span>, a triangular factor for the enlarged design can be obtained by triangularizing <span class="math display">\[
-\begin{pmatrix}R_1\\U^\top\end{pmatrix}.
-\]</span> The stacked matrix has <span class="math inline">\(p+m\)</span> rows and <span class="math inline">\(p\)</span> columns: <span class="math inline">\(R_1\)</span> is <span class="math inline">\(p\times p\)</span> and <span class="math inline">\(U^\top\)</span> is <span class="math inline">\(m\times p\)</span>. Its Gram matrix is <span class="math inline">\(R_1^\top R_1+UU^\top=X_{\mathrm{new}}^\top X_{\mathrm{new}}\)</span>. This explains why the previous triangular factor contains useful information for a row update.</p>
-<p>Deleting rows changes the plus sign to a minus sign. A valid downdate requires the remaining design to retain the rank needed by the subsequent solve. The algebraic relation alone does not guarantee favorable conditioning after deletion.</p>
+<p>Suppose <span class="math inline">\(X=Q_1R_1\)</span> has already been computed and a batch of <span class="math inline">\(m\)</span> observations is represented by <span class="math inline">\(U^\top\)</span>, where <span class="math inline">\(U\in\mathbb R^{p\times m}\)</span>. The enlarged design is <span class="math display">\[
+X_+=\begin{pmatrix}X\\U^\top\end{pmatrix}.
+\]</span> Applying the previously available orthogonal transformation to the original observation block reduces the new factorization problem to triangularizing <span class="math display">\[
+\begin{pmatrix}R_1\\U^\top\end{pmatrix}
+\in\mathbb R^{(p+m)\times p},
+\]</span> together with zero rows that do not affect the triangular factor. The new observations have to be incorporated, but the original n-row design need not be factorized again to obtain R.</p>
+<p>The corresponding cross-product identity is <span class="math display">\[
+X_+^\top X_+=R_1^\top R_1+UU^\top.
+\]</span> It also explains what additional information a regression update needs. If <span class="math inline">\(y_+\)</span> is the vector of responses for the new batch, the right-hand side becomes <span class="math inline">\(h_+=h+Uy_+\)</span>, where <span class="math inline">\(h=X^\top y\)</span>. Updating R alone does not update that response-dependent quantity.</p>
+<p>Deleting observations reverses the signs in both updates. The resulting cross-product matrix is positive semidefinite when the deleted rows belong to the original design; it is positive definite precisely when the remaining design has full column rank. A downdated factor may still represent a rank-deficient design, but the unpivoted triangular coefficient solve then requires further treatment. Near a loss of rank, cancellation in the subtraction makes the numerical checks especially important.</p>
 </section>
 <section id="ridge-as-augmented-least-squares" class="level1" data-number="5">
 <h1 data-number="5"><span class="header-section-number">5</span> Ridge as augmented least squares</h1>
@@ -337,13 +379,20 @@ H=I-2vv^\top/(v^\top v),\qquad v\ne0.
 &amp;=\left\|\begin{pmatrix}y-Xb\\-\sqrt{n\lambda}b\end{pmatrix}\right\|_2^2\\
 &amp;=\|y-Xb\|_2^2+n\lambda\|b\|_2^2.
 \end{aligned}
-\]</span> The augmented formulation is useful as an independent QR reference. It also makes the factor <span class="math inline">\(n\)</span> explicit: changing the normalization of the loss changes the interpretation of <span class="math inline">\(\lambda\)</span>.</p>
+\]</span> Multiplying the normalized criterion by n does not change its minimizer, so the ridge estimate is the ordinary least-squares solution for these augmented data. With a thin factorization <span class="math inline">\(\widetilde X=\widetilde Q_1\widetilde R_1\)</span>, it can be computed by <span class="math display">\[
+\widetilde R_1\widehat\beta_\lambda
+=\widetilde Q_1^\top\widetilde y.
+\]</span> Equivalently, differentiating the original criterion gives <span class="math display">\[
+(X^\top X+n\lambda I_p)\widehat\beta_\lambda=X^\top y.
+\]</span> The extra rows imply <span class="math inline">\(\widetilde R_1^\top\widetilde R_1=X^\top X+n\lambda I_p\)</span>. An R-only calculation therefore uses this factor in two triangular solves, just as in the unpenalized case. A positive penalty makes the system positive definite even when X has dependent columns, although a particular fitting interface can impose additional restrictions on input dimensions.</p>
+<p>The augmented formulation is an independent way to check the implementations. It also identifies the scale of the penalty: the factor n is a consequence of dividing the data loss by n.&nbsp;Within cross-validation, n is replaced by the size of the corresponding training set.</p>
 <p>The intercept is handled separately in the ridge tutorial by centering. If a column of ones were simply included in the penalized design, that coefficient would also be penalized. Predictor means and scales must be estimated again within each cross-validation training fold.</p>
 </section>
 <section id="choosing-a-representation" class="level1" data-number="6">
 <h1 data-number="6"><span class="header-section-number">6</span> Choosing a representation</h1>
-<p>Use compact factors when storage is important and <span class="math inline">\(Q\)</span> need not be explicitly formed. Use thin factors when orthogonal projections or direct QR solves are needed. Use full factors when an operation requires an orthogonal completion, as in the QR update examples here. An R-only representation is attractive when Gram information and triangular solves suffice, but auxiliary quantities such as <span class="math inline">\(X^\top y\)</span> still need to be maintained for regression.</p>
-<p>The worked examples demonstrate these distinctions through reconstruction identities, independent solutions and measured timings. They should be read together with the function documentation for the installed package version.</p>
+<p>The representation should retain the information needed by the next calculation. A compact factorization stores the transformations defining Q and is useful when only their action on vectors is required. Thin factors make the column-space basis explicit, supporting projections and direct QR solves. A full factorization also retains an orthogonal complement, which is used by some update routines but can require substantially more storage for a tall design.</p>
+<p>An R-only representation is sufficient when subsequent operations need the cross-product information <span class="math inline">\(R^\top R\)</span> and triangular solves. Regression still requires a compatible right-hand side such as <span class="math inline">\(X^\top y\)</span>, and insertion of new predictors can require cross-products with their observed values. These requirements distinguish the information needed by the algorithm from the matrix finally returned to R.</p>
+<p>The examples use reconstruction identities, independent coefficient calculations and recorded timings to examine those choices. The function guide describes the interfaces, while the numerical experiments show how representation, conditioning and the starting information affect the computation.</p>
 </section>
 <section id="references" class="level1 unnumbered">
 
@@ -775,7 +824,7 @@ Golub, Gene H., and Charles F. Van Loan. 2013. <em>Matrix Computations</em>. Fou
       &nbsp;
     </div>
     <div class="nav-footer-right">
-<p>Worked examples · Version 1.1.5</p>
+<p>Worked examples · Version 1.1.6</p>
 </div>
   </div>
 </footer>

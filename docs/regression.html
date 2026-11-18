@@ -161,6 +161,10 @@ window.Quarto = {
     <a class="nav-link" href="./index.html"> 
 <span class="menu-text">Overview</span></a>
   </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./theory.html"> 
+<span class="menu-text">Theory</span></a>
+  </li>  
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-tutorials" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Tutorials</span>
@@ -178,15 +182,19 @@ window.Quarto = {
     <a class="dropdown-item" href="./regression.html">
  <span class="dropdown-text">Regression and ridge paths</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./ridge-evidence.html">
+ <span class="dropdown-text">Ridge by marginal likelihood</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ridge-updates.html">
+ <span class="dropdown-text">Ridge with growing designs</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item">
     <a class="nav-link" href="./accuracy.html"> 
 <span class="menu-text">Accuracy and timing</span></a>
-  </li>  
-  <li class="nav-item">
-    <a class="nav-link" href="./theory.html"> 
-<span class="menu-text">Theory</span></a>
   </li>  
   <li class="nav-item">
     <a class="nav-link" href="./reference.html"> 
@@ -209,10 +217,16 @@ window.Quarto = {
    
   <ul>
   <li><a href="#least-squares-with-predictions" id="toc-least-squares-with-predictions" class="nav-link active" data-scroll-target="#least-squares-with-predictions"><span class="header-section-number">1</span> Least squares with predictions</a></li>
-  <li><a href="#ridge-scaling-the-penalty-and-handling-the-intercept" id="toc-ridge-scaling-the-penalty-and-handling-the-intercept" class="nav-link" data-scroll-target="#ridge-scaling-the-penalty-and-handling-the-intercept"><span class="header-section-number">2</span> Ridge: scaling the penalty and handling the intercept</a></li>
+  <li><a href="#ridge-scaling-the-penalty-and-handling-the-intercept" id="toc-ridge-scaling-the-penalty-and-handling-the-intercept" class="nav-link" data-scroll-target="#ridge-scaling-the-penalty-and-handling-the-intercept"><span class="header-section-number">2</span> Ridge: scaling the penalty and handling the intercept</a>
+  <ul class="collapse">
+  <li><a href="#the-two-numerical-routes" id="toc-the-two-numerical-routes" class="nav-link" data-scroll-target="#the-two-numerical-routes"><span class="header-section-number">2.1</span> The two numerical routes</a></li>
+  <li><a href="#centering-scaling-and-coefficient-interpretation" id="toc-centering-scaling-and-coefficient-interpretation" class="nav-link" data-scroll-target="#centering-scaling-and-coefficient-interpretation"><span class="header-section-number">2.2</span> Centering, scaling and coefficient interpretation</a></li>
+  </ul></li>
   <li><a href="#cross-validation-with-preprocessing-inside-each-fold" id="toc-cross-validation-with-preprocessing-inside-each-fold" class="nav-link" data-scroll-target="#cross-validation-with-preprocessing-inside-each-fold"><span class="header-section-number">3</span> Cross-validation with preprocessing inside each fold</a></li>
   <li><a href="#effective-degrees-of-freedom-along-the-ridge-path" id="toc-effective-degrees-of-freedom-along-the-ridge-path" class="nav-link" data-scroll-target="#effective-degrees-of-freedom-along-the-ridge-path"><span class="header-section-number">4</span> Effective degrees of freedom along the ridge path</a></li>
   <li><a href="#multiple-responses" id="toc-multiple-responses" class="nav-link" data-scroll-target="#multiple-responses"><span class="header-section-number">5</span> Multiple responses</a></li>
+  <li><a href="#native-cross-validation-on-a-supplied-design" id="toc-native-cross-validation-on-a-supplied-design" class="nav-link" data-scroll-target="#native-cross-validation-on-a-supplied-design"><span class="header-section-number">6</span> Native cross-validation on a supplied design</a></li>
+  <li><a href="#ridge-with-multiple-responses" id="toc-ridge-with-multiple-responses" class="nav-link" data-scroll-target="#ridge-with-multiple-responses"><span class="header-section-number">7</span> Ridge with multiple responses</a></li>
   </ul>
 </nav>
     </div>
@@ -239,10 +253,13 @@ window.Quarto = {
 
 
 <!-- Generato da chapters/regression.Rmd: modificare quel file, poi source("build.R"). -->
-<p>This chapter connects the factorizations to statistical estimates. The examples use <code>type = "QR"</code> and check the coefficient vectors against independent reference calculations. Matrix inputs do not automatically encode a formula: an intercept must be supplied or handled by centering.</p>
+<p>The factors become statistically useful when they are connected to an estimation problem and to the predictions obtained from its solution. This chapter begins with ordinary least squares, where a coefficient vector can be checked against an independent QR fit, and then introduces ridge regularization. A ridge path shows how the estimates change with the penalty; cross-validation supplies a separate procedure for choosing among those candidate fits.</p>
+<p>The construction of the design remains part of the model specification. These matrix interfaces do not insert an intercept or perform preprocessing automatically, so the examples make those choices explicit. Both ridge backends are checked against augmented-design QR calculations, allowing differences in model specification to be distinguished from differences between numerical implementations.</p>
 <section id="least-squares-with-predictions" class="level1" data-number="1">
 <h1 data-number="1"><span class="header-section-number">1</span> Least squares with predictions</h1>
-<p>We generate six predictors, of which three have nonzero coefficients, and an intercept. The test observations are generated independently of the training observations.</p>
+<p>Write the regression model as <span class="math inline">\(y=D\theta+\varepsilon\)</span>, where <span class="math inline">\(D=[\boldsymbol 1_n,X]\)</span> includes an intercept and <span class="math inline">\(\theta=(\alpha,\beta^\top)^\top\)</span>. A direct thin factorization <span class="math inline">\(D=Q_D R_D\)</span> gives the least-squares estimate through <span class="math inline">\(R_D\widehat\theta=Q_D^\top y\)</span>. The fitted values are <span class="math inline">\(D\widehat\theta\)</span>, while a new design with the same column definitions gives predictions <span class="math inline">\(D_{\mathrm{test}}\widehat\theta\)</span>.</p>
+<p>The model-fitting interface used here, <code>qrls(..., type = "QR")</code>, solves a normalized cross-product system internally. The example therefore checks its coefficients against both a direct factorization of D and <code>lm.fit()</code>. On this well-conditioned design the three routes should agree to numerical precision; the accuracy chapter examines why their agreement on such an example does not establish identical numerical behavior near singularity.</p>
+<p>We generate six predictors, of which three have nonzero coefficients, together with an intercept. Observation noise means that fitted coefficients need not equal their generating values exactly. The independent test observations are reserved for assessing prediction after the model has been fitted.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2029</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">160</span>L</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="dv">6</span>L</span>
@@ -255,10 +272,15 @@ window.Quarto = {
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>design <span class="ot">&lt;-</span> <span class="fu">cbind</span>(<span class="at">intercept =</span> <span class="dv">1</span>, X)</span>
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>design_test <span class="ot">&lt;-</span> <span class="fu">cbind</span>(<span class="at">intercept =</span> <span class="dv">1</span>, X_test)</span>
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>ols <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qrls</span>(y, design, <span class="at">X_test =</span> design_test, <span class="at">type =</span> <span class="st">"QR"</span>)</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">max</span>(<span class="fu">abs</span>(ols<span class="sc">$</span>coeff <span class="sc">-</span> <span class="fu">lm.fit</span>(design, y)<span class="sc">$</span>coefficients)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">term =</span> <span class="fu">c</span>(<span class="st">"Intercept"</span>, <span class="fu">paste0</span>(<span class="st">"x"</span>, <span class="fu">seq_len</span>(p))),</span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">truth =</span> <span class="fu">c</span>(<span class="dv">1</span>, beta_true), <span class="at">estimate =</span> <span class="fu">as.numeric</span>(ols<span class="sc">$</span>coeff)), <span class="at">digits =</span> <span class="dv">4</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>ols_factors <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qr</span>(design, <span class="at">complete =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>ols_projection <span class="ot">&lt;-</span> <span class="fu">crossprod</span>(ols_factors<span class="sc">$</span>Q, y)</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>ols_explicit <span class="ot">&lt;-</span> <span class="fu">backsolve</span>(ols_factors<span class="sc">$</span>R, ols_projection)</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>ols_derivation_error <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="fu">abs</span>(ols<span class="sc">$</span>coeff <span class="sc">-</span> ols_explicit))</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(ols_derivation_error <span class="sc">&lt;</span> <span class="fl">1e-10</span>,</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>          <span class="fu">max</span>(<span class="fu">abs</span>(ols<span class="sc">$</span>coeff <span class="sc">-</span> <span class="fu">lm.fit</span>(design, y)<span class="sc">$</span>coefficients)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">term =</span> <span class="fu">c</span>(<span class="st">"Intercept"</span>, <span class="fu">paste0</span>(<span class="st">"x"</span>, <span class="fu">seq_len</span>(p))),</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">truth =</span> <span class="fu">c</span>(<span class="dv">1</span>, beta_true), <span class="at">estimate =</span> <span class="fu">as.numeric</span>(ols<span class="sc">$</span>coeff)), <span class="at">digits =</span> <span class="dv">4</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -309,26 +331,53 @@ window.Quarto = {
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>ols_test_mse</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <pre><code>## [1] 2.238406</code></pre>
 <p>The error on the independent test set estimates predictive performance; it is not the training residual variance. We compute the squared residual loss explicitly from predictions so that the quantity being reported is unambiguous.</p>
+<p><a href="#fig-regression-predictions">Figure 2</a> compares the independent test responses with the predictions from the fitted model. The identity line represents exact prediction. Scatter around that line includes the new observation noise, so an accurate coefficient estimate does not make every test prediction coincide with its observed response.</p>
 <div class="sourceCode" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(<span class="fu">data.frame</span>(<span class="at">observed =</span> y_test,</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>                          <span class="at">predicted =</span> <span class="fu">drop</span>(design_test <span class="sc">%*%</span> ols<span class="sc">$</span>coeff)),</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>                ggplot2<span class="sc">::</span><span class="fu">aes</span>(observed, predicted)) <span class="sc">+</span></span>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_point</span>(<span class="at">alpha =</span> .<span class="dv">4</span>, <span class="at">colour =</span> <span class="st">"#b5121b"</span>) <span class="sc">+</span></span>
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>, <span class="at">intercept =</span> <span class="dv">0</span>, <span class="at">colour =</span> <span class="st">"#526070"</span>) <span class="sc">+</span></span>
 <span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">coord_equal</span>() <span class="sc">+</span> ggplot2<span class="sc">::</span><span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="figure" style="text-align: center">
-<img src="fastqr-guide_files/figure-html/regression-predictions-1.png" alt="Independent test responses versus least-squares predictions. The diagonal is a reference line, not a fitted trend." width="100%">
+<div id="fig-regression-predictions" class="figure quarto-float quarto-figure quarto-figure-center anchored" style="text-align: center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-regression-predictions-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="fastqr-guide_files/figure-html/regression-predictions-1.png" alt="Figure 2: Independent test responses versus least-squares predictions. The diagonal is a reference line, not a fitted trend." width="100%" class="figure-img">
 <p class="caption">
-Independent test responses versus least-squares predictions. The diagonal is a reference line, not a fitted trend.
+Figure 2: Independent test responses versus least-squares predictions. The diagonal is a reference line, not a fitted trend.
 </p>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-regression-predictions-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1
+</figcaption>
+</figure>
 </div>
 </section>
 <section id="ridge-scaling-the-penalty-and-handling-the-intercept" class="level1" data-number="2">
 <h1 data-number="2"><span class="header-section-number">2</span> Ridge: scaling the penalty and handling the intercept</h1>
-<p>For <code>qrridge(..., type = "QR")</code>, the coefficient vector solves <span class="math display">\[
+<p>For either backend of <code>qrridge()</code>, the coefficient vector solves <span class="math display">\[
 \widehat\beta_\lambda
 =\arg\min_b\left\{\frac{1}{n}\|y-Xb\|_2^2+\lambda\|b\|_2^2\right\}
 =(X^\top X+n\lambda I_p)^{-1}X^\top y.
-\]</span> Here <code>lambda</code> is <strong>a scalar</strong>. We build a path by calling the function once per grid value. All supplied columns are penalized. To leave the intercept unpenalized, center the response and predictors, estimate the slopes, and reconstruct the intercept. We also scale predictors using training-set standard deviations so that a common penalty has a comparable interpretation across columns.</p>
+\]</span> Differentiating this criterion with respect to b gives <span class="math display">\[
+-\frac{2}{n}X^\top(y-Xb)+2\lambda b=0,
+\]</span> and hence the penalized system <span class="math inline">\((X^\top X+n\lambda I_p)\widehat\beta_\lambda=X^\top y\)</span>. A positive penalty adds curvature in every coefficient direction, making this system nonsingular even if the design has dependent columns. The inverse in the displayed expression describes the estimator mathematically; the implementations obtain it through factorizations and solves.</p>
+<section id="the-two-numerical-routes" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="the-two-numerical-routes"><span class="header-section-number">2.1</span> The two numerical routes</h2>
+<p>In the <code>QR</code> backend, define <span class="math inline">\(A_\lambda=X^\top X/n+\lambda I_p\)</span> and <span class="math inline">\(h=X^\top y\)</span>. The routine factorizes <span class="math inline">\(A_\lambda=Q_A R_A\)</span>, forms <span class="math inline">\(Q_A^\top h/n\)</span> and solves the upper triangular system with <span class="math inline">\(R_A\)</span>. The factorization is therefore of the normalized penalized system, rather than of X itself.</p>
+<p>The <code>R</code> backend uses the augmented design <span class="math inline">\(\widetilde X=[X^\top,\sqrt{n\lambda}I_p]^\top\)</span> to obtain a triangular factor <span class="math inline">\(\widetilde R\)</span> satisfying <span class="math inline">\(\widetilde R^\top\widetilde R=X^\top X+n\lambda I_p\)</span>. The coefficients follow from <span class="math display">\[
+\widetilde R^\top c=h,\qquad
+\widetilde R\widehat\beta_\lambda=c.
+\]</span> These routes have the same exact-arithmetic solution, while their intermediate factors have different meanings. The examples compare their coefficients with an independent augmented-design QR solve, rather than comparing their R entries as though they were the same factorization.</p>
+<p>The factor n follows from normalizing the data loss by the number of observations. Replicating all observations leaves this criterion, and therefore the estimate at a fixed penalty, unchanged. In a validation fold the same convention uses the number of training observations, not the size of the full dataset.</p>
+</section>
+<section id="centering-scaling-and-coefficient-interpretation" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="centering-scaling-and-coefficient-interpretation"><span class="header-section-number">2.2</span> Centering, scaling and coefficient interpretation</h2>
+<p>Here <code>lambda</code> is <strong>a scalar</strong>. We build a path by calling the function once per grid value. All supplied columns are penalized. To leave the intercept unpenalized, center the response and predictors, estimate the slopes, and reconstruct the intercept. We also scale predictors using training-set standard deviations so that a common penalty has a comparable interpretation across columns.</p>
+<p>Let <span class="math inline">\(\bar x_j\)</span> and <span class="math inline">\(s_j\)</span> denote the training mean and standard deviation of predictor j, and define <span class="math inline">\(Z_{ij}=(X_{ij}-\bar x_j)/s_j\)</span>. Fitting the centered response on Z produces standardized coefficients <span class="math inline">\(\widehat\gamma_\lambda\)</span>. The original-scale slopes and intercept are recovered through <span class="math display">\[
+\widehat\beta_{\lambda,j}=\widehat\gamma_{\lambda,j}/s_j,
+\qquad
+\widehat\alpha_\lambda=\bar y-\sum_j\bar x_j\widehat\beta_{\lambda,j}.
+\]</span> Thus a new prediction can be obtained either from the standardized design with the training means and scales, or from the original predictors with these recovered coefficients. The penalty acts on the standardized coefficients, which is why changing predictor units without an explicit scaling convention can change the fit.</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>x_mean <span class="ot">&lt;-</span> <span class="fu">colMeans</span>(X)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x_scale <span class="ot">&lt;-</span> <span class="fu">apply</span>(X, <span class="dv">2</span>, sd)</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>y_mean <span class="ot">&lt;-</span> <span class="fu">mean</span>(y)</span>
@@ -338,57 +387,83 @@ Independent test responses versus least-squares predictions. The diagonal is a r
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>path_standardized <span class="ot">&lt;-</span> <span class="fu">vapply</span>(lambda, <span class="cf">function</span>(lam) {</span>
 <span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.numeric</span>(fastQR<span class="sc">::</span><span class="fu">qrridge</span>(y_centered, Z, <span class="at">lambda =</span> lam, <span class="at">type =</span> <span class="st">"QR"</span>)<span class="sc">$</span>coeff)</span>
 <span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>}, <span class="fu">numeric</span>(p))</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>path_slopes <span class="ot">&lt;-</span> <span class="fu">sweep</span>(path_standardized, <span class="dv">1</span>, x_scale, <span class="st">"/"</span>)</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>path_intercept <span class="ot">&lt;-</span> y_mean <span class="sc">-</span> <span class="fu">drop</span>(<span class="fu">crossprod</span>(x_mean, path_slopes))</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Independent augmented-design QR calculation at one grid value.</span></span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>j <span class="ot">&lt;-</span> <span class="dv">20</span>L</span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>reference <span class="ot">&lt;-</span> <span class="fu">qr.coef</span>(base<span class="sc">::</span><span class="fu">qr</span>(<span class="fu">rbind</span>(Z, <span class="fu">sqrt</span>(n <span class="sc">*</span> lambda[j]) <span class="sc">*</span> <span class="fu">diag</span>(p))),</span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>                     <span class="fu">c</span>(y_centered, <span class="fu">rep</span>(<span class="dv">0</span>, p)))</span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">max</span>(<span class="fu">abs</span>(path_standardized[, j] <span class="sc">-</span> reference)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>path_table <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">lambda =</span> <span class="fu">rep</span>(lambda, <span class="at">each =</span> p),</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>                         <span class="at">coefficient =</span> <span class="fu">factor</span>(<span class="fu">rep</span>(<span class="fu">seq_len</span>(p), <span class="fu">length</span>(lambda))),</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>                         <span class="at">estimate =</span> <span class="fu">as.vector</span>(path_slopes))</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(path_table, ggplot2<span class="sc">::</span><span class="fu">aes</span>(lambda, estimate, <span class="at">colour =</span> coefficient)) <span class="sc">+</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_line</span>(<span class="at">linewidth =</span> .<span class="dv">8</span>) <span class="sc">+</span> ggplot2<span class="sc">::</span><span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">labs</span>(<span class="at">x =</span> <span class="fu">expression</span>(lambda), <span class="at">y =</span> <span class="st">"Coefficient estimate"</span>, <span class="at">colour =</span> <span class="st">"Predictor"</span>) <span class="sc">+</span></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="figure" style="text-align: center">
-<img src="fastqr-guide_files/figure-html/ridge-coefficients-1.png" alt="Ridge slopes on their original predictor scale, plotted against a logarithmic penalty grid. Coefficients shrink continuously; ridge does not generally create an exactly sparse fit." width="100%">
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>path_triangular <span class="ot">&lt;-</span> <span class="fu">vapply</span>(lambda, <span class="cf">function</span>(lam) {</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.numeric</span>(fastQR<span class="sc">::</span><span class="fu">qrridge</span>(y_centered, Z, <span class="at">lambda =</span> lam, <span class="at">type =</span> <span class="st">"R"</span>)<span class="sc">$</span>coeff)</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>}, <span class="fu">numeric</span>(p))</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">max</span>(<span class="fu">abs</span>(path_standardized <span class="sc">-</span> path_triangular)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>path_slopes <span class="ot">&lt;-</span> <span class="fu">sweep</span>(path_standardized, <span class="dv">1</span>, x_scale, <span class="st">"/"</span>)</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>path_intercept <span class="ot">&lt;-</span> y_mean <span class="sc">-</span> <span class="fu">drop</span>(<span class="fu">crossprod</span>(x_mean, path_slopes))</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Independent augmented-design QR calculation at one grid value.</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>j <span class="ot">&lt;-</span> <span class="dv">20</span>L</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>reference <span class="ot">&lt;-</span> <span class="fu">qr.coef</span>(base<span class="sc">::</span><span class="fu">qr</span>(<span class="fu">rbind</span>(Z, <span class="fu">sqrt</span>(n <span class="sc">*</span> lambda[j]) <span class="sc">*</span> <span class="fu">diag</span>(p))),</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>                     <span class="fu">c</span>(y_centered, <span class="fu">rep</span>(<span class="dv">0</span>, p)))</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">max</span>(<span class="fu">abs</span>(path_standardized[, j] <span class="sc">-</span> reference)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>The R-only calculation at one path value can also be checked directly from its returned triangular factor. The inner <code>forwardsolve()</code> reconstructs the response coordinates, and the following <code>backsolve()</code> returns the coefficients. The additional rows in the augmented QR reference contain zeros in the response because they encode only the penalty.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>ridge_R_fit <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qrridge</span>(y_centered, Z, lambda[j], <span class="at">type =</span> <span class="st">"R"</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>ridge_rhs <span class="ot">&lt;-</span> <span class="fu">crossprod</span>(Z, y_centered)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>ridge_coordinates <span class="ot">&lt;-</span> <span class="fu">forwardsolve</span>(<span class="fu">t</span>(ridge_R_fit<span class="sc">$</span>R), ridge_rhs)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>ridge_explicit <span class="ot">&lt;-</span> <span class="fu">backsolve</span>(ridge_R_fit<span class="sc">$</span>R, ridge_coordinates)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>ridge_manual_error <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="fu">abs</span>(ridge_explicit <span class="sc">-</span> path_triangular[, j]))</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(ridge_manual_error <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><a href="#fig-ridge-coefficients">Figure 3</a> follows the fitted slopes as the penalty increases. Expressing the coefficients on the original predictor scale makes their statistical interpretation consistent with the data-generating model, while the logarithmic penalty axis reveals changes across several orders of magnitude. Agreement between the two numerical backends is checked before the paths are drawn.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>path_table <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">lambda =</span> <span class="fu">rep</span>(lambda, <span class="at">each =</span> p),</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>                         <span class="at">coefficient =</span> <span class="fu">factor</span>(<span class="fu">rep</span>(<span class="fu">seq_len</span>(p), <span class="fu">length</span>(lambda))),</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>                         <span class="at">estimate =</span> <span class="fu">as.vector</span>(path_slopes))</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(path_table, ggplot2<span class="sc">::</span><span class="fu">aes</span>(lambda, estimate, <span class="at">colour =</span> coefficient)) <span class="sc">+</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_line</span>(<span class="at">linewidth =</span> .<span class="dv">8</span>) <span class="sc">+</span> ggplot2<span class="sc">::</span><span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">labs</span>(<span class="at">x =</span> <span class="fu">expression</span>(lambda), <span class="at">y =</span> <span class="st">"Coefficient estimate"</span>, <span class="at">colour =</span> <span class="st">"Predictor"</span>) <span class="sc">+</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="fig-ridge-coefficients" class="figure quarto-float quarto-figure quarto-figure-center anchored" style="text-align: center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-ridge-coefficients-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="fastqr-guide_files/figure-html/ridge-coefficients-1.png" alt="Figure 3: Ridge slopes on their original predictor scale, plotted against a logarithmic penalty grid. The coefficients change continuously with the penalty; ridge does not generally create an exactly sparse fit." width="100%" class="figure-img">
 <p class="caption">
-Ridge slopes on their original predictor scale, plotted against a logarithmic penalty grid. Coefficients shrink continuously; ridge does not generally create an exactly sparse fit.
+Figure 3: Ridge slopes on their original predictor scale, plotted against a logarithmic penalty grid. The coefficients change continuously with the penalty; ridge does not generally create an exactly sparse fit.
 </p>
 </div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-ridge-coefficients-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2
+</figcaption>
+</figure>
+</div>
+</section>
 </section>
 <section id="cross-validation-with-preprocessing-inside-each-fold" class="level1" data-number="3">
 <h1 data-number="3"><span class="header-section-number">3</span> Cross-validation with preprocessing inside each fold</h1>
-<p>We use an explicit five-fold loop around <code>qrridge(..., type = "QR")</code>. This exposes the loss, the penalty normalization and the preprocessing used in each fit. The fold assignment is fixed across the entire grid. Means and scales are estimated using only the training portion of each fold, avoiding information leakage from validation observations.</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2030</span>)</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>K <span class="ot">&lt;-</span> <span class="dv">5</span>L</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>fold <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="fu">rep</span>(<span class="fu">seq_len</span>(K), <span class="at">length.out =</span> n))</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>squared_error <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="cn">NA_real_</span>, n, <span class="fu">length</span>(lambda))</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (k <span class="cf">in</span> <span class="fu">seq_len</span>(K)) {</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  train <span class="ot">&lt;-</span> fold <span class="sc">!=</span> k</span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  valid <span class="ot">&lt;-</span> <span class="sc">!</span>train</span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  mu <span class="ot">&lt;-</span> <span class="fu">colMeans</span>(X[train, , <span class="at">drop =</span> <span class="cn">FALSE</span>])</span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  sc <span class="ot">&lt;-</span> <span class="fu">apply</span>(X[train, , <span class="at">drop =</span> <span class="cn">FALSE</span>], <span class="dv">2</span>, sd)</span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  ybar <span class="ot">&lt;-</span> <span class="fu">mean</span>(y[train])</span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  Z_train <span class="ot">&lt;-</span> <span class="fu">sweep</span>(<span class="fu">sweep</span>(X[train, , <span class="at">drop =</span> <span class="cn">FALSE</span>], <span class="dv">2</span>, mu, <span class="st">"-"</span>), <span class="dv">2</span>, sc, <span class="st">"/"</span>)</span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  Z_valid <span class="ot">&lt;-</span> <span class="fu">sweep</span>(<span class="fu">sweep</span>(X[valid, , <span class="at">drop =</span> <span class="cn">FALSE</span>], <span class="dv">2</span>, mu, <span class="st">"-"</span>), <span class="dv">2</span>, sc, <span class="st">"/"</span>)</span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (j <span class="cf">in</span> <span class="fu">seq_along</span>(lambda)) {</span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    b <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qrridge</span>(y[train] <span class="sc">-</span> ybar, Z_train,</span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>                         <span class="at">lambda =</span> lambda[j], <span class="at">type =</span> <span class="st">"QR"</span>)<span class="sc">$</span>coeff</span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    prediction <span class="ot">&lt;-</span> ybar <span class="sc">+</span> <span class="fu">drop</span>(Z_valid <span class="sc">%*%</span> b)</span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>    squared_error[valid, j] <span class="ot">&lt;-</span> (y[valid] <span class="sc">-</span> prediction)<span class="sc">^</span><span class="dv">2</span></span>
-<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>cv_mse <span class="ot">&lt;-</span> <span class="fu">colMeans</span>(squared_error)</span>
-<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>best <span class="ot">&lt;-</span> <span class="fu">which.min</span>(cv_mse)</span>
-<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>lambda_selected <span class="ot">&lt;-</span> lambda[best]</span>
-<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>selected_prediction <span class="ot">&lt;-</span> path_intercept[best] <span class="sc">+</span> <span class="fu">drop</span>(X_test <span class="sc">%*%</span> path_slopes[, best])</span>
-<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
-<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="fu">c</span>(<span class="st">"Least squares"</span>, <span class="st">"CV-selected ridge"</span>),</span>
-<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>  <span class="at">test_MSE =</span> <span class="fu">c</span>(ols_test_mse, <span class="fu">mean</span>((y_test <span class="sc">-</span> selected_prediction)<span class="sc">^</span><span class="dv">2</span>))), <span class="at">digits =</span> <span class="dv">4</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>A coefficient vector at a fixed penalty minimizes training loss plus a penalty term. Choosing the penalty is a separate calculation, for which the relevant target is prediction on observations not used to obtain those coefficients. Divide the training sample into validation sets <span class="math inline">\(\mathcal V_1,\ldots,\mathcal V_K\)</span>, and let <span class="math inline">\(\mathcal T_k\)</span> contain the remaining observations for fold k. A candidate penalty is fitted on <span class="math inline">\(\mathcal T_k\)</span> and evaluated on <span class="math inline">\(\mathcal V_k\)</span>.</p>
+<p>The explicit loop below records a squared prediction error for every validation observation and averages those errors across the full sample, <span class="math display">\[
+\mathrm{CV}(\lambda)
+=\frac{1}{n}\sum_{k=1}^K\sum_{i\in\mathcal V_k}
+\left(y_i-\widehat y_i^{(-k)}(\lambda)\right)^2.
+\]</span> The same fold assignment is retained for every candidate penalty. Means, standard deviations and the response mean are estimated from <span class="math inline">\(\mathcal T_k\)</span> alone, then applied to the held-out predictors. This reproduces the information available when predicting a genuinely new observation and prevents validation values from influencing the preprocessing used to fit that fold.</p>
+<p>After selecting the smallest validation error, the final coefficient vector is taken from the path fitted on the full training sample. Its preprocessing uses the full training means and scales, as it should at this refitting stage. The independent test set remains outside both the fold calculations and the penalty selection.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2030</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>K <span class="ot">&lt;-</span> <span class="dv">5</span>L</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>fold <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="fu">rep</span>(<span class="fu">seq_len</span>(K), <span class="at">length.out =</span> n))</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>squared_error <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="cn">NA_real_</span>, n, <span class="fu">length</span>(lambda))</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (k <span class="cf">in</span> <span class="fu">seq_len</span>(K)) {</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  train <span class="ot">&lt;-</span> fold <span class="sc">!=</span> k</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  valid <span class="ot">&lt;-</span> <span class="sc">!</span>train</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  mu <span class="ot">&lt;-</span> <span class="fu">colMeans</span>(X[train, , <span class="at">drop =</span> <span class="cn">FALSE</span>])</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  sc <span class="ot">&lt;-</span> <span class="fu">apply</span>(X[train, , <span class="at">drop =</span> <span class="cn">FALSE</span>], <span class="dv">2</span>, sd)</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  ybar <span class="ot">&lt;-</span> <span class="fu">mean</span>(y[train])</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  Z_train <span class="ot">&lt;-</span> <span class="fu">sweep</span>(<span class="fu">sweep</span>(X[train, , <span class="at">drop =</span> <span class="cn">FALSE</span>], <span class="dv">2</span>, mu, <span class="st">"-"</span>), <span class="dv">2</span>, sc, <span class="st">"/"</span>)</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  Z_valid <span class="ot">&lt;-</span> <span class="fu">sweep</span>(<span class="fu">sweep</span>(X[valid, , <span class="at">drop =</span> <span class="cn">FALSE</span>], <span class="dv">2</span>, mu, <span class="st">"-"</span>), <span class="dv">2</span>, sc, <span class="st">"/"</span>)</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (j <span class="cf">in</span> <span class="fu">seq_along</span>(lambda)) {</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>    b <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qrridge</span>(y[train] <span class="sc">-</span> ybar, Z_train,</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>                         <span class="at">lambda =</span> lambda[j], <span class="at">type =</span> <span class="st">"QR"</span>)<span class="sc">$</span>coeff</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>    prediction <span class="ot">&lt;-</span> ybar <span class="sc">+</span> <span class="fu">drop</span>(Z_valid <span class="sc">%*%</span> b)</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>    squared_error[valid, j] <span class="ot">&lt;-</span> (y[valid] <span class="sc">-</span> prediction)<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>cv_mse <span class="ot">&lt;-</span> <span class="fu">colMeans</span>(squared_error)</span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>best <span class="ot">&lt;-</span> <span class="fu">which.min</span>(cv_mse)</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>lambda_selected <span class="ot">&lt;-</span> lambda[best]</span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>selected_prediction <span class="ot">&lt;-</span> path_intercept[best] <span class="sc">+</span> <span class="fu">drop</span>(X_test <span class="sc">%*%</span> path_slopes[, best])</span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="fu">c</span>(<span class="st">"Least squares"</span>, <span class="st">"CV-selected ridge"</span>),</span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>  <span class="at">test_MSE =</span> <span class="fu">c</span>(ols_test_mse, <span class="fu">mean</span>((y_test <span class="sc">-</span> selected_prediction)<span class="sc">^</span><span class="dv">2</span>))), <span class="at">digits =</span> <span class="dv">4</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -407,51 +482,79 @@ Ridge slopes on their original predictor scale, plotted against a logarithmic pe
 </tr>
 </tbody>
 </table>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>lambda_selected</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>lambda_selected</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <pre><code>## [1] 0.001676833</code></pre>
 <p>The test responses are used only after selection. A single simulation need not favor ridge over least squares. Cross-validation chooses among the candidate penalties; it does not guarantee that the selected fit outperforms every alternative on new data. If the selected value lies at a grid endpoint, consider extending the grid.</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(<span class="fu">data.frame</span>(lambda, <span class="at">MSE =</span> cv_mse), ggplot2<span class="sc">::</span><span class="fu">aes</span>(lambda, MSE)) <span class="sc">+</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_line</span>(<span class="at">colour =</span> <span class="st">"#b5121b"</span>, <span class="at">linewidth =</span> .<span class="dv">9</span>) <span class="sc">+</span></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_vline</span>(<span class="at">xintercept =</span> lambda_selected, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">colour =</span> <span class="st">"#526070"</span>) <span class="sc">+</span></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">scale_x_log10</span>() <span class="sc">+</span> ggplot2<span class="sc">::</span><span class="fu">labs</span>(<span class="at">x =</span> <span class="fu">expression</span>(lambda), <span class="at">y =</span> <span class="st">"Cross-validated MSE"</span>) <span class="sc">+</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="figure" style="text-align: center">
-<img src="fastqr-guide_files/figure-html/ridge-cv-plot-1.png" alt="Validation mean squared error along the penalty grid. The dashed line marks the minimum on this grid." width="100%">
+<p>The validation curve in <a href="#fig-ridge-cv-plot">Figure 4</a> summarizes the prediction loss over the candidate penalties. Its minimum identifies the value used for the final fit, with the dashed line locating that choice on the same grid. The curve concerns held-out prediction after fold-specific preprocessing; it is not the training loss minimized when estimating the coefficients.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(<span class="fu">data.frame</span>(lambda, <span class="at">MSE =</span> cv_mse), ggplot2<span class="sc">::</span><span class="fu">aes</span>(lambda, MSE)) <span class="sc">+</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_line</span>(<span class="at">colour =</span> <span class="st">"#b5121b"</span>, <span class="at">linewidth =</span> .<span class="dv">9</span>) <span class="sc">+</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_vline</span>(<span class="at">xintercept =</span> lambda_selected, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">colour =</span> <span class="st">"#526070"</span>) <span class="sc">+</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">scale_x_log10</span>() <span class="sc">+</span> ggplot2<span class="sc">::</span><span class="fu">labs</span>(<span class="at">x =</span> <span class="fu">expression</span>(lambda), <span class="at">y =</span> <span class="st">"Cross-validated MSE"</span>) <span class="sc">+</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="fig-ridge-cv-plot" class="figure quarto-float quarto-figure quarto-figure-center anchored" style="text-align: center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-ridge-cv-plot-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="fastqr-guide_files/figure-html/ridge-cv-plot-1.png" alt="Figure 4: Validation mean squared error along the penalty grid. The dashed line marks the minimum on this grid." width="100%" class="figure-img">
 <p class="caption">
-Validation mean squared error along the penalty grid. The dashed line marks the minimum on this grid.
+Figure 4: Validation mean squared error along the penalty grid. The dashed line marks the minimum on this grid.
 </p>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-ridge-cv-plot-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3
+</figcaption>
+</figure>
 </div>
 </section>
 <section id="effective-degrees-of-freedom-along-the-ridge-path" class="level1" data-number="4">
 <h1 data-number="4"><span class="header-section-number">4</span> Effective degrees of freedom along the ridge path</h1>
 <p>For a fixed design, fixed preprocessing and fixed <span class="math inline">\(\lambda\)</span>, ridge is linear in <span class="math inline">\(y\)</span>. If <span class="math inline">\(d_j\)</span> are the singular values of the centered, standardized design <span class="math inline">\(Z\)</span>, the effective degrees of freedom including the unpenalized intercept are <span class="math display">\[
 \mathrm{df}(\lambda)=1+\sum_{j=1}^p\frac{d_j^2}{d_j^2+n\lambda}.
-\]</span> This calculation is provided explicitly in the tutorial; it is not taken from the package’s returned <code>df</code> field. It describes each fixed-penalty candidate, not the additional complexity of selecting <span class="math inline">\(\lambda\)</span> using the responses.</p>
-<div class="sourceCode" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>d2 <span class="ot">&lt;-</span> <span class="fu">svd</span>(Z, <span class="at">nu =</span> <span class="dv">0</span>, <span class="at">nv =</span> <span class="dv">0</span>)<span class="sc">$</span>d<span class="sc">^</span><span class="dv">2</span></span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>df_path <span class="ot">&lt;-</span> <span class="fu">vapply</span>(lambda, <span class="cf">function</span>(lam) <span class="dv">1</span> <span class="sc">+</span> <span class="fu">sum</span>(d2 <span class="sc">/</span> (d2 <span class="sc">+</span> n <span class="sc">*</span> lam)), <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">all</span>(<span class="fu">diff</span>(df_path) <span class="sc">&lt;=</span> <span class="dv">0</span>), <span class="fu">all</span>(df_path <span class="sc">&gt;=</span> <span class="dv">1</span>), <span class="fu">all</span>(df_path <span class="sc">&lt;=</span> p <span class="sc">+</span> <span class="dv">1</span>))</span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(<span class="fu">data.frame</span>(lambda, <span class="at">df =</span> df_path), ggplot2<span class="sc">::</span><span class="fu">aes</span>(lambda, df)) <span class="sc">+</span></span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_line</span>(<span class="at">colour =</span> <span class="st">"#b5121b"</span>, <span class="at">linewidth =</span> .<span class="dv">9</span>) <span class="sc">+</span> ggplot2<span class="sc">::</span><span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_vline</span>(<span class="at">xintercept =</span> lambda_selected, <span class="at">linetype =</span> <span class="st">"dashed"</span>) <span class="sc">+</span></span>
-<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">labs</span>(<span class="at">x =</span> <span class="fu">expression</span>(lambda), <span class="at">y =</span> <span class="st">"Effective degrees of freedom"</span>) <span class="sc">+</span></span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="figure" style="text-align: center">
-<img src="fastqr-guide_files/figure-html/ridge-df-1.png" alt="Effective degrees of freedom for each fixed ridge penalty, including the unpenalized intercept." width="100%">
+\]</span> To see where this expression comes from, write the thin singular value decomposition <span class="math inline">\(Z=U_Z D_Z V_Z^\top\)</span>, with diagonal entries <span class="math inline">\(d_j\)</span> in <span class="math inline">\(D_Z\)</span>. For the centered response <span class="math inline">\(y_c=y-\bar y\boldsymbol 1_n\)</span>, the centered fitted values are <span class="math display">\[
+\widehat y_c
+=H_\lambda y_c,\qquad
+H_\lambda
+=U_Z\operatorname{diag}\left(\frac{d_j^2}{d_j^2+n\lambda}\right)U_Z^\top.
+\]</span> Each orthogonal data direction therefore contributes a shrinkage multiplier <span class="math inline">\(d_j^2/(d_j^2+n\lambda)\)</span> to the fitted-value map. The trace of this matrix is the sum of those multipliers. Because Z has centered columns, the separate intercept adds the projection onto the constant direction and contributes one additional degree of freedom.</p>
+<p>For a full-column-rank Z, the total approaches <span class="math inline">\(p+1\)</span> as the penalty tends to zero and approaches one as it tends to infinity. These limits describe the unpenalized fit and the intercept-only limit. They do not require every coefficient on the original predictor scale to decrease monotonically when predictors are correlated.</p>
+<p>The code computes this fixed-penalty trace explicitly, rather than reading the package’s legacy residual-dimension field <code>df</code>. Substituting a penalty selected from the responses locates a fit on the curve, but the trace of that candidate alone does not include the additional response dependence of the selection rule.</p>
+<p><a href="#fig-ridge-df">Figure 5</a> expresses the same regularization path in terms of effective model complexity. Increasing the penalty reduces the contribution of each penalized direction, while the unpenalized intercept contributes one degree of freedom throughout. The dashed line locates the selected penalty without incorporating the additional response dependence of the selection procedure into this fixed-penalty formula.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>d2 <span class="ot">&lt;-</span> <span class="fu">svd</span>(Z, <span class="at">nu =</span> <span class="dv">0</span>, <span class="at">nv =</span> <span class="dv">0</span>)<span class="sc">$</span>d<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>df_path <span class="ot">&lt;-</span> <span class="fu">vapply</span>(lambda, <span class="cf">function</span>(lam) <span class="dv">1</span> <span class="sc">+</span> <span class="fu">sum</span>(d2 <span class="sc">/</span> (d2 <span class="sc">+</span> n <span class="sc">*</span> lam)), <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">all</span>(<span class="fu">diff</span>(df_path) <span class="sc">&lt;=</span> <span class="dv">0</span>), <span class="fu">all</span>(df_path <span class="sc">&gt;=</span> <span class="dv">1</span>), <span class="fu">all</span>(df_path <span class="sc">&lt;=</span> p <span class="sc">+</span> <span class="dv">1</span>))</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(<span class="fu">data.frame</span>(lambda, <span class="at">df =</span> df_path), ggplot2<span class="sc">::</span><span class="fu">aes</span>(lambda, df)) <span class="sc">+</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_line</span>(<span class="at">colour =</span> <span class="st">"#b5121b"</span>, <span class="at">linewidth =</span> .<span class="dv">9</span>) <span class="sc">+</span> ggplot2<span class="sc">::</span><span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_vline</span>(<span class="at">xintercept =</span> lambda_selected, <span class="at">linetype =</span> <span class="st">"dashed"</span>) <span class="sc">+</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">labs</span>(<span class="at">x =</span> <span class="fu">expression</span>(lambda), <span class="at">y =</span> <span class="st">"Effective degrees of freedom"</span>) <span class="sc">+</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="fig-ridge-df" class="figure quarto-float quarto-figure quarto-figure-center anchored" style="text-align: center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-ridge-df-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="fastqr-guide_files/figure-html/ridge-df-1.png" alt="Figure 5: Effective degrees of freedom for each fixed ridge penalty, including the unpenalized intercept. The dashed line marks the cross-validated penalty; the curve describes fixed-penalty fits." width="100%" class="figure-img">
 <p class="caption">
-Effective degrees of freedom for each fixed ridge penalty, including the unpenalized intercept.
+Figure 5: Effective degrees of freedom for each fixed ridge penalty, including the unpenalized intercept. The dashed line marks the cross-validated penalty; the curve describes fixed-penalty fits.
 </p>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-ridge-df-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;4
+</figcaption>
+</figure>
 </div>
 </section>
 <section id="multiple-responses" class="level1" data-number="5">
 <h1 data-number="5"><span class="header-section-number">5</span> Multiple responses</h1>
-<p>When several outcomes share a design, <code>qrmls()</code> estimates a coefficient matrix. The same factorization can be reused across outcomes. Here we check its result against a base-R QR least-squares calculation.</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2031</span>)</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="fu">cbind</span>(y, <span class="fu">drop</span>(<span class="sc">-</span>.<span class="dv">5</span> <span class="sc">+</span> X <span class="sc">%*%</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="sc">-</span><span class="dv">1</span>, <span class="dv">0</span>, .<span class="dv">5</span>) <span class="sc">+</span> <span class="fu">rnorm</span>(n)))</span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>multivariate <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qrmls</span>(Y, design, <span class="at">type =</span> <span class="st">"QR"</span>)</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>reference <span class="ot">&lt;-</span> <span class="fu">qr.coef</span>(base<span class="sc">::</span><span class="fu">qr</span>(design), Y)</span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">max</span>(<span class="fu">abs</span>(multivariate<span class="sc">$</span>coeff <span class="sc">-</span> reference)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">as.matrix</span>(multivariate<span class="sc">$</span>coeff), <span class="at">digits =</span> <span class="dv">4</span>,</span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>             <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Response 1"</span>, <span class="st">"Response 2"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>With <span class="math inline">\(Y\in\mathbb R^{n\times q}\)</span>, the model has a coefficient matrix <span class="math inline">\(B\in\mathbb R^{p_D\times q}\)</span>, where <span class="math inline">\(p_D\)</span> is the number of columns in the supplied design D. The least-squares loss is <span class="math inline">\(\|Y-DB\|_F^2\)</span>, the sum of the q response-specific squared losses. A direct factorization <span class="math inline">\(D=Q_D R_D\)</span> yields <span class="math display">\[
+C=Q_D^\top Y,\qquad R_D\widehat B=C.
+\]</span> The columns of C are projected response vectors. One triangular factor is reused to solve for all coefficient columns, so the common design does not need to be factorized separately for each outcome. The example checks <code>qrmls()</code> against both that direct calculation and a base-R QR fit.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2031</span>)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="fu">cbind</span>(y, <span class="fu">drop</span>(<span class="sc">-</span>.<span class="dv">5</span> <span class="sc">+</span> X <span class="sc">%*%</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="sc">-</span><span class="dv">1</span>, <span class="dv">0</span>, .<span class="dv">5</span>) <span class="sc">+</span> <span class="fu">rnorm</span>(n)))</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>multivariate <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qrmls</span>(Y, design, <span class="at">type =</span> <span class="st">"QR"</span>)</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>reference <span class="ot">&lt;-</span> <span class="fu">qr.coef</span>(base<span class="sc">::</span><span class="fu">qr</span>(design), Y)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>multi_direct <span class="ot">&lt;-</span> <span class="fu">backsolve</span>(ols_factors<span class="sc">$</span>R, <span class="fu">crossprod</span>(ols_factors<span class="sc">$</span>Q, Y))</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>multi_direct_error <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="fu">abs</span>(multivariate<span class="sc">$</span>coeff <span class="sc">-</span> multi_direct))</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(multi_direct_error <span class="sc">&lt;</span> <span class="fl">1e-10</span>,</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>          <span class="fu">max</span>(<span class="fu">abs</span>(multivariate<span class="sc">$</span>coeff <span class="sc">-</span> reference)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">as.matrix</span>(multivariate<span class="sc">$</span>coeff), <span class="at">digits =</span> <span class="dv">4</span>,</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>             <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Response 1"</span>, <span class="st">"Response 2"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -490,6 +593,117 @@ Effective degrees of freedom for each fixed ridge penalty, including the unpenal
 </tr>
 </tbody>
 </table>
+</section>
+<section id="native-cross-validation-on-a-supplied-design" class="level1" data-number="6">
+<h1 data-number="6"><span class="header-section-number">6</span> Native cross-validation on a supplied design</h1>
+<p>The packaged interfaces select a penalty for the design matrix supplied to them. They do not center the response, standardize predictors within folds or treat a column of ones separately. Consequently, the following fit penalizes the intercept column in <code>design</code>. It answers a different model-selection question from the preceding example, where preprocessing is repeated within each fold and the intercept is unpenalized.</p>
+<p>The native interfaces generate random folds from the supplied seed, and return their labels rather than accepting a user-supplied fold assignment. The independent simulated observations used here match that resampling setup. An explicit validation loop leaves the training and validation sets under the analyst’s control when a different prediction design is required, such as a chronological split of ordered observations.</p>
+<p>Each training fit minimizes its own normalized loss, with the number of training observations multiplying the penalty in the normal equations. The returned <code>foldid</code> makes the split explicit. The reported curve averages held-out squared errors equally across folds; when fold sizes differ, this need not equal a pooled average across all validation observations.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>native_qr <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qrridge_cv</span>(y, design, lambda, <span class="at">k =</span> <span class="dv">5</span>L, <span class="at">seed =</span> <span class="dv">2032</span>L,</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>                                <span class="at">X_test =</span> design_test, <span class="at">type =</span> <span class="st">"QR"</span>)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>native_r <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qrridge_cv</span>(y, design, lambda, <span class="at">k =</span> <span class="dv">5</span>L, <span class="at">seed =</span> <span class="dv">2032</span>L,</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>                               <span class="at">X_test =</span> design_test, <span class="at">type =</span> <span class="st">"R"</span>)</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">identical</span>(native_qr<span class="sc">$</span>foldid, native_r<span class="sc">$</span>foldid),</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>          <span class="fu">max</span>(<span class="fu">abs</span>(native_qr<span class="sc">$</span>mse <span class="sc">-</span> native_r<span class="sc">$</span>mse)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>,</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>          <span class="fu">max</span>(<span class="fu">abs</span>(native_qr<span class="sc">$</span>coeff <span class="sc">-</span> native_r<span class="sc">$</span>coeff)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Reconstruct the entire validation curve independently.</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>native_reference_mse <span class="ot">&lt;-</span> <span class="fu">vapply</span>(lambda, <span class="cf">function</span>(lam) {</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mean</span>(<span class="fu">vapply</span>(<span class="fu">sort</span>(<span class="fu">unique</span>(native_qr<span class="sc">$</span>foldid)), <span class="cf">function</span>(k) {</span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>    train <span class="ot">&lt;-</span> native_qr<span class="sc">$</span>foldid <span class="sc">!=</span> k</span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>    valid <span class="ot">&lt;-</span> <span class="sc">!</span>train</span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    nt <span class="ot">&lt;-</span> <span class="fu">sum</span>(train)</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>    A <span class="ot">&lt;-</span> <span class="fu">rbind</span>(design[train, , <span class="at">drop =</span> <span class="cn">FALSE</span>],</span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>               <span class="fu">sqrt</span>(nt <span class="sc">*</span> lam) <span class="sc">*</span> <span class="fu">diag</span>(<span class="fu">ncol</span>(design)))</span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>    b <span class="ot">&lt;-</span> <span class="fu">qr.coef</span>(base<span class="sc">::</span><span class="fu">qr</span>(A), <span class="fu">c</span>(y[train], <span class="fu">rep</span>(<span class="dv">0</span>, <span class="fu">ncol</span>(design))))</span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mean</span>((y[valid] <span class="sc">-</span> <span class="fu">drop</span>(design[valid, , <span class="at">drop =</span> <span class="cn">FALSE</span>] <span class="sc">%*%</span> b))<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>  }, <span class="fu">numeric</span>(<span class="dv">1</span>)))</span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>}, <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">as.numeric</span>(native_qr<span class="sc">$</span>mse) <span class="sc">-</span> native_reference_mse)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a>  <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">"QR"</span>, <span class="st">"R"</span>),</span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>  <span class="at">selected_lambda =</span> <span class="fu">c</span>(native_qr<span class="sc">$</span>lambda_min, native_r<span class="sc">$</span>lambda_min),</span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>  <span class="at">validation_MSE =</span> <span class="fu">c</span>(native_qr<span class="sc">$</span>mse_min, native_r<span class="sc">$</span>mse_min),</span>
+<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>  <span class="at">test_MSE =</span> <span class="fu">c</span>(<span class="fu">mean</span>((y_test <span class="sc">-</span> native_qr<span class="sc">$</span>predicted)<span class="sc">^</span><span class="dv">2</span>),</span>
+<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>               <span class="fu">mean</span>((y_test <span class="sc">-</span> native_r<span class="sc">$</span>predicted)<span class="sc">^</span><span class="dv">2</span>))), <span class="at">digits =</span> <span class="dv">5</span>,</span>
+<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"Native cross-validation with a penalized intercept column."</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="caption-top table">
+<caption>Native cross-validation with a penalized intercept column.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">backend</th>
+<th style="text-align: right;">selected_lambda</th>
+<th style="text-align: right;">validation_MSE</th>
+<th style="text-align: right;">test_MSE</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">QR</td>
+<td style="text-align: right;">0.02223</td>
+<td style="text-align: right;">2.87428</td>
+<td style="text-align: right;">2.22877</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">R</td>
+<td style="text-align: right;">0.02223</td>
+<td style="text-align: right;">2.87428</td>
+<td style="text-align: right;">2.22877</td>
+</tr>
+</tbody>
+</table>
+<p>The final coefficients are estimated again on the full training sample at the selected penalty. The <code>mse_min_ind</code> field retains a zero-based index for compatibility; <code>lambda_min</code> gives the selected value directly. For the <code>R</code> backend, an explicit orthogonal factor is neither needed nor returned.</p>
+</section>
+<section id="ridge-with-multiple-responses" class="level1" data-number="7">
+<h1 data-number="7"><span class="header-section-number">7</span> Ridge with multiple responses</h1>
+<p>Ridge retains the shared-system structure for several outcomes. Differentiating <span class="math inline">\(\|Y-DB\|_F^2/n+\lambda\|B\|_F^2\)</span> gives <span class="math display">\[
+(D^\top D+n\lambda I_{p_D})\widehat B_\lambda=D^\top Y.
+\]</span> The right-hand side has q columns; each is processed using the same penalized factorization. The augmented reference stacks <span class="math inline">\(\sqrt{n\lambda}I_{p_D}\)</span> below D and a <span class="math inline">\(p_D\times q\)</span> zero matrix below Y, turning the penalized calculation into ordinary multivariate least squares.</p>
+<p>The native validation score averages squared prediction errors over held-out rows and response columns within each fold, then averages the fold scores. Averaging over responses multiplies their summed prediction loss by the fixed factor <span class="math inline">\(1/q\)</span>, which does not change the ordering of candidate penalties for that response set. Different response units still change the relative contribution of the outcomes, so any desired response scaling must be specified explicitly and fitted within the training portions of the validation procedure.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>multi_qr <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qrmridge_cv</span>(Y, design, lambda, <span class="at">k =</span> <span class="dv">5</span>L, <span class="at">seed =</span> <span class="dv">2032</span>L,</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>                                <span class="at">X_test =</span> design_test, <span class="at">type =</span> <span class="st">"QR"</span>)</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>multi_r <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qrmridge_cv</span>(Y, design, lambda, <span class="at">k =</span> <span class="dv">5</span>L, <span class="at">seed =</span> <span class="dv">2032</span>L,</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>                               <span class="at">X_test =</span> design_test, <span class="at">type =</span> <span class="st">"R"</span>)</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="fu">rbind</span>(design, <span class="fu">sqrt</span>(n <span class="sc">*</span> multi_qr<span class="sc">$</span>lambda_min) <span class="sc">*</span> <span class="fu">diag</span>(<span class="fu">ncol</span>(design)))</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>B_reference <span class="ot">&lt;-</span> <span class="fu">qr.coef</span>(base<span class="sc">::</span><span class="fu">qr</span>(A), <span class="fu">rbind</span>(Y, <span class="fu">matrix</span>(<span class="dv">0</span>, <span class="fu">ncol</span>(design), <span class="fu">ncol</span>(Y))))</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">max</span>(<span class="fu">abs</span>(multi_qr<span class="sc">$</span>coeff <span class="sc">-</span> B_reference)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>,</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>          <span class="fu">max</span>(<span class="fu">abs</span>(multi_r<span class="sc">$</span>coeff <span class="sc">-</span> B_reference)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>,</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>          <span class="fu">max</span>(<span class="fu">abs</span>(multi_qr<span class="sc">$</span>mse <span class="sc">-</span> multi_r<span class="sc">$</span>mse)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>,</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>          <span class="fu">max</span>(<span class="fu">abs</span>(multi_qr<span class="sc">$</span>predicted <span class="sc">-</span> design_test <span class="sc">%*%</span> B_reference)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>,</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>          <span class="sc">!</span><span class="fu">anyDuplicated</span>(<span class="fu">names</span>(multi_qr)), <span class="sc">!</span><span class="fu">anyDuplicated</span>(<span class="fu">names</span>(multi_r)))</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">"QR"</span>, <span class="st">"R"</span>),</span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">selected_lambda =</span> <span class="fu">c</span>(multi_qr<span class="sc">$</span>lambda_min, multi_r<span class="sc">$</span>lambda_min),</span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">validation_MSE =</span> <span class="fu">c</span>(multi_qr<span class="sc">$</span>mse_min, multi_r<span class="sc">$</span>mse_min),</span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">maximum_coefficient_error =</span> <span class="fu">c</span>(<span class="fu">max</span>(<span class="fu">abs</span>(multi_qr<span class="sc">$</span>coeff <span class="sc">-</span> B_reference)),</span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>                                <span class="fu">max</span>(<span class="fu">abs</span>(multi_r<span class="sc">$</span>coeff <span class="sc">-</span> B_reference)))),</span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">digits =</span> <span class="dv">6</span>, <span class="at">caption =</span> <span class="st">"Multiple-response ridge checked against an independent QR fit."</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="caption-top table">
+<caption>Multiple-response ridge checked against an independent QR fit.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">backend</th>
+<th style="text-align: right;">selected_lambda</th>
+<th style="text-align: right;">validation_MSE</th>
+<th style="text-align: right;">maximum_coefficient_error</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">QR</td>
+<td style="text-align: right;">0.028118</td>
+<td style="text-align: right;">2.020752</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">R</td>
+<td style="text-align: right;">0.028118</td>
+<td style="text-align: right;">2.020752</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+<p>The cross-products are available as <code>XTX</code> and <code>XTY</code>; <code>XTy</code> is retained as an alias of <code>XTY</code>. The returned <code>df</code> field is a legacy residual-dimension diagnostic, rather than the effective ridge degrees of freedom derived earlier. Likewise, residual variance and covariance estimates divided by <code>n-p</code> are diagnostics, not unbiased ridge variance estimators.</p>
 
 
 </section>
@@ -904,7 +1118,7 @@ Effective degrees of freedom for each fixed ridge penalty, including the unpenal
       &nbsp;
     </div>
     <div class="nav-footer-right">
-<p>Worked examples · Version 1.1.5</p>
+<p>Worked examples · Version 1.1.6</p>
 </div>
   </div>
 </footer>

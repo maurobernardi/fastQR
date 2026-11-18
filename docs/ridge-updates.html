@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.7.32">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Ridge regression as the design grows – fastQR</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./assets/unipd-seal.png" rel="icon" type="image/png">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-234273d1456647dabc34a594ac50e507.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-3aba38651184ee82a9c65464af710223.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    <img src="./assets/unipd-seal.png" alt="University of Padua seal" class="navbar-logo">
+    </a>
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">fastQR</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./index.html"> 
+<span class="menu-text">Overview</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./theory.html"> 
+<span class="menu-text">Theory</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-tutorials" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Tutorials</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-tutorials">    
+        <li>
+    <a class="dropdown-item" href="./decompositions.html">
+ <span class="dropdown-text">QR decompositions</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./updates.html">
+ <span class="dropdown-text">Updating and downdating</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./regression.html">
+ <span class="dropdown-text">Regression and ridge paths</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ridge-evidence.html">
+ <span class="dropdown-text">Ridge by marginal likelihood</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ridge-updates.html">
+ <span class="dropdown-text">Ridge with growing designs</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="./accuracy.html"> 
+<span class="menu-text">Accuracy and timing</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./reference.html"> 
+<span class="menu-text">Function guide</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#the-augmented-problem-and-the-meaning-of-a-fixed-penalty" id="toc-the-augmented-problem-and-the-meaning-of-a-fixed-penalty" class="nav-link active" data-scroll-target="#the-augmented-problem-and-the-meaning-of-a-fixed-penalty"><span class="header-section-number">1</span> The augmented problem and the meaning of a fixed penalty</a></li>
+  <li><a href="#a-reproducible-fit-with-more-predictors-than-observations" id="toc-a-reproducible-fit-with-more-predictors-than-observations" class="nav-link" data-scroll-target="#a-reproducible-fit-with-more-predictors-than-observations"><span class="header-section-number">2</span> A reproducible fit with more predictors than observations</a></li>
+  <li><a href="#adding-observations" id="toc-adding-observations" class="nav-link" data-scroll-target="#adding-observations"><span class="header-section-number">3</span> Adding observations</a></li>
+  <li><a href="#adding-predictors" id="toc-adding-predictors" class="nav-link" data-scroll-target="#adding-predictors"><span class="header-section-number">4</span> Adding predictors</a></li>
+  <li><a href="#accuracy-and-time-for-the-same-updated-fit" id="toc-accuracy-and-time-for-the-same-updated-fit" class="nav-link" data-scroll-target="#accuracy-and-time-for-the-same-updated-fit"><span class="header-section-number">5</span> Accuracy and time for the same updated fit</a></li>
+  <li><a href="#following-the-design-across-the-boundary-pn" id="toc-following-the-design-across-the-boundary-pn" class="nav-link" data-scroll-target="#following-the-design-across-the-boundary-pn"><span class="header-section-number">6</span> Following the design across the boundary <span class="math inline">\(p=n\)</span></a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Ridge regression as the design grows</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<!-- Generato da chapters/ridge-updates.Rmd: modificare quel file, poi source("build.R"). -->
+<p>A sequence of ridge fits provides a useful setting in which to assess the value of updating a triangular factor. New observations change the information available about a fixed coefficient vector, whereas new predictors enlarge the model itself. Both operations can be represented as changes to an augmented least-squares design. This representation also allows us to consider more predictors than observations: a positive ridge penalty makes the augmented design full column rank even when the observed design is wide.</p>
+<p>The comparison in this chapter concerns the numerical work required to fit the same specified model after a change in its design. We examine coefficient and prediction accuracy separately from elapsed time, and compare updating with a fresh LAPACK factorization of the augmented design. The penalty is specified in advance. Choosing it from the data is a separate procedure, discussed in the preceding chapter.</p>
+<section id="the-augmented-problem-and-the-meaning-of-a-fixed-penalty" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> The augmented problem and the meaning of a fixed penalty</h1>
+<p>For a response matrix <span class="math inline">\(Y\in\mathbb R^{n\times q}\)</span> and design <span class="math inline">\(X\in\mathbb R^{n\times p}\)</span>, consider <span class="math display">\[
+\widehat B_\alpha=\arg\min_B\{\|Y-XB\|_F^2+\alpha\|B\|_F^2\},\qquad \alpha&gt;0.
+\]</span> Writing <span class="math display">\[
+A_\alpha=\begin{bmatrix}X\\\sqrt\alpha I_p\end{bmatrix},\qquad
+Y_\alpha=\begin{bmatrix}Y\\0_{p\times q}\end{bmatrix}
+\]</span> turns this criterion into an ordinary least-squares problem with a full-column-rank design. Indeed, for any nonzero vector <span class="math inline">\(v\)</span>, <span class="math display">\[
+v^\top A_\alpha^\top A_\alpha v=\|Xv\|_2^2+\alpha\|v\|_2^2&gt;0.
+\]</span> This argument does not require <span class="math inline">\(p\le n\)</span>. If <span class="math inline">\(A_\alpha=QR\)</span>, then <span class="math display">\[
+R^\top R=X^\top X+\alpha I_p,\qquad
+R^\top Z=X^\top Y,\qquad R\widehat B_\alpha=Z.
+\]</span> The last two equations describe an R-only workflow, which maintains the response cross-product as well as the factor. They are not interchangeable, in numerical accuracy, with explicitly applying the orthogonal transformations to <span class="math inline">\(Y_\alpha\)</span>. We therefore use the latter approach as an independent reference when checking the updated coefficients. The use of QR and augmented systems for least squares is discussed in <span class="citation" data-cites="golub_van_loan.2013">Golub and Van Loan (<a href="#ref-golub_van_loan.2013" role="doc-biblioref">2013</a>)</span> and <span class="citation" data-cites="bjorck.2015">Björck (<a href="#ref-bjorck.2015" role="doc-biblioref">2015</a>)</span>.</p>
+<p>The public ridge functions use the normalized criterion <span class="math inline">\(\|Y-XB\|_F^2/n+\lambda\|B\|_F^2\)</span>, so the parameter in the augmented design is <span class="math inline">\(\alpha=n\lambda\)</span>. Holding <span class="math inline">\(\alpha\)</span> fixed while adding observations consequently changes the equivalent normalized parameter to <span class="math inline">\(\lambda_{n+m}=\alpha/(n+m)\)</span>. Holding <span class="math inline">\(\lambda\)</span> fixed instead changes the total penalty. We treat these two experiments separately rather than silently changing the optimization problem.</p>
+</section>
+<section id="a-reproducible-fit-with-more-predictors-than-observations" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> A reproducible fit with more predictors than observations</h1>
+<p>The following example has forty observations and eighty predictors. A positive penalty gives a unique fit, despite the rank deficiency of the unpenalized problem. The two public interfaces are compared with a QR solve of the augmented design, whose right-hand side is transformed orthogonally.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">312</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>n_wide <span class="ot">&lt;-</span> <span class="dv">40</span>L</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>p_wide <span class="ot">&lt;-</span> <span class="dv">80</span>L</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>X_wide <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n_wide <span class="sc">*</span> p_wide), n_wide, p_wide)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>y_wide <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n_wide)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>alpha_wide <span class="ot">&lt;-</span> <span class="dv">8</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>lambda_wide <span class="ot">&lt;-</span> alpha_wide <span class="sc">/</span> n_wide</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>wide_QR <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qrridge</span>(y_wide, X_wide, lambda_wide, <span class="at">type =</span> <span class="st">"QR"</span>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>wide_R <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qrridge</span>(y_wide, X_wide, lambda_wide, <span class="at">type =</span> <span class="st">"R"</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>A_wide <span class="ot">&lt;-</span> <span class="fu">rbind</span>(X_wide, <span class="fu">sqrt</span>(alpha_wide) <span class="sc">*</span> <span class="fu">diag</span>(p_wide))</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>f_wide <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qr_lapack</span>(A_wide, <span class="at">output =</span> <span class="st">"thin"</span>)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>beta_reference <span class="ot">&lt;-</span> <span class="fu">backsolve</span>(</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  f_wide<span class="sc">$</span>R, <span class="fu">crossprod</span>(f_wide<span class="sc">$</span>Q, <span class="fu">c</span>(y_wide, <span class="fu">rep</span>(<span class="dv">0</span>, p_wide))))</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">QR_error =</span> <span class="fu">max</span>(<span class="fu">abs</span>(wide_QR<span class="sc">$</span>coeff <span class="sc">-</span> beta_reference)),</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">R_error =</span> <span class="fu">max</span>(<span class="fu">abs</span>(wide_R<span class="sc">$</span>coeff <span class="sc">-</span> beta_reference)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code>##     QR_error      R_error 
+## 1.137979e-15 5.273559e-16</code></pre>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">max</span>(<span class="fu">abs</span>(wide_QR<span class="sc">$</span>coeff <span class="sc">-</span> beta_reference)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>,</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>          <span class="fu">max</span>(<span class="fu">abs</span>(wide_R<span class="sc">$</span>coeff <span class="sc">-</span> beta_reference)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>The legacy residual diagnostic <span class="math inline">\(n-p\)</span> is not a degrees-of-freedom formula for ridge regression. The updated interfaces return <code>NA</code> for this diagnostic and its associated variance estimates when <span class="math inline">\(p&gt;n\)</span>; the coefficients, fitted values and requested predictions remain available. Effective ridge degrees of freedom are obtained from the smoother matrix, as explained in the preceding chapter. A zero penalty still requires full column rank, and therefore cannot be used to obtain a unique wide-design fit through these interfaces.</p>
+</section>
+<section id="adding-observations" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> Adding observations</h1>
+<p>Suppose that <span class="math inline">\(U\in\mathbb R^{m\times p}\)</span> contains new observations and <span class="math inline">\(V\in\mathbb R^{m\times q}\)</span> their responses. At fixed <span class="math inline">\(\alpha\)</span>, the maintained quantities satisfy <span class="math display">\[
+R_{\rm new}^\top R_{\rm new}=R^\top R+U^\top U,
+\qquad H_{\rm new}=H+U^\top V,\qquad H=X^\top Y.
+\]</span> The existing row-update routine applies to the augmented design. The penalty rows need not be added again: they are already represented in <span class="math inline">\(R\)</span>.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">313</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>new_X <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(<span class="dv">5</span>L <span class="sc">*</span> p_wide), <span class="dv">5</span>L, p_wide)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>new_y <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="dv">5</span>L)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>R_before <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qr_lapack</span>(A_wide, <span class="at">output =</span> <span class="st">"R"</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>H_before <span class="ot">&lt;-</span> <span class="fu">crossprod</span>(X_wide, y_wide)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>R_after <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">rupdate</span>(A_wide, R_before, <span class="at">U =</span> <span class="fu">t</span>(new_X),</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>                          <span class="at">type =</span> <span class="st">"row"</span>, <span class="at">fast =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>H_after <span class="ot">&lt;-</span> H_before <span class="sc">+</span> <span class="fu">crossprod</span>(new_X, new_y)</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>beta_after <span class="ot">&lt;-</span> <span class="fu">backsolve</span>(R_after, <span class="fu">forwardsolve</span>(<span class="fu">t</span>(R_after), H_after))</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>fit_after <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qrridge</span>(<span class="fu">c</span>(y_wide, new_y), <span class="fu">rbind</span>(X_wide, new_X),</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>                            <span class="at">lambda =</span> alpha_wide <span class="sc">/</span> (n_wide <span class="sc">+</span> <span class="dv">5</span>L), <span class="at">type =</span> <span class="st">"R"</span>)</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">max</span>(<span class="fu">abs</span>(beta_after <span class="sc">-</span> fit_after<span class="sc">$</span>coeff)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>If the normalized parameter <span class="math inline">\(\lambda\)</span> must remain fixed, the required identity is instead <span class="math display">\[
+R_{\rm new}^\top R_{\rm new}
+=R^\top R+U^\top U+m\lambda I_p.
+\]</span> One valid construction appends both the observation rows and the additional penalty rows <span class="math inline">\(\sqrt{m\lambda}I_p\)</span>. This construction is exact, but its extra work can erase an advantage for updating. The timing comparison below includes this cost; a fixed-<span class="math inline">\(\alpha\)</span> result must not be presented as evidence of a fixed-<span class="math inline">\(\lambda\)</span> speedup.</p>
+</section>
+<section id="adding-predictors" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> Adding predictors</h1>
+<p>Let <span class="math inline">\(W\in\mathbb R^{n\times k}\)</span> contain new predictors. With the same penalty on every coefficient, the enlarged augmented design can be arranged as <span class="math display">\[
+\begin{bmatrix}
+X&amp;W\\\sqrt\alpha I_p&amp;0\\0&amp;\sqrt\alpha I_k
+\end{bmatrix}.
+\]</span> The first <span class="math inline">\(p\)</span> columns are the old augmented design with <span class="math inline">\(k\)</span> zero rows appended. Their triangular factor is still <span class="math inline">\(R\)</span>. The new columns have observation part <span class="math inline">\(W\)</span>, zeros on the old penalty rows, and their own diagonal penalty block. Updating these columns therefore includes the penalty on the new coefficients; appending <span class="math inline">\(W\)</span> alone would solve a different problem.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">314</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>k_new <span class="ot">&lt;-</span> <span class="dv">3</span>L</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>W_new <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n_wide <span class="sc">*</span> k_new), n_wide, k_new)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>A_padded <span class="ot">&lt;-</span> <span class="fu">rbind</span>(A_wide, <span class="fu">matrix</span>(<span class="dv">0</span>, k_new, p_wide))</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>W_augmented <span class="ot">&lt;-</span> <span class="fu">rbind</span>(W_new, <span class="fu">matrix</span>(<span class="dv">0</span>, p_wide, k_new),</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>                     <span class="fu">sqrt</span>(alpha_wide) <span class="sc">*</span> <span class="fu">diag</span>(k_new))</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>R_enlarged <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">rupdate</span>(A_padded, R_before, <span class="at">U =</span> W_augmented,</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>                             <span class="at">type =</span> <span class="st">"column"</span>, <span class="at">fast =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>H_enlarged <span class="ot">&lt;-</span> <span class="fu">rbind</span>(H_before, <span class="fu">crossprod</span>(W_new, y_wide))</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>beta_enlarged <span class="ot">&lt;-</span> <span class="fu">backsolve</span>(R_enlarged,</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>                           <span class="fu">forwardsolve</span>(<span class="fu">t</span>(R_enlarged), H_enlarged))</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>fit_enlarged <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qrridge</span>(y_wide, <span class="fu">cbind</span>(X_wide, W_new),</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>                               lambda_wide, <span class="at">type =</span> <span class="st">"R"</span>)</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">max</span>(<span class="fu">abs</span>(beta_enlarged <span class="sc">-</span> fit_enlarged<span class="sc">$</span>coeff)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>This column update includes a triangular solve whose accuracy depends on conditioning. The positive penalty separates the augmented columns from exact linear dependence, but does not provide a uniform accuracy guarantee for arbitrarily small penalties. The tests below use a moderate specified penalty and report the observed errors against an orthogonal reference.</p>
+</section>
+<section id="accuracy-and-time-for-the-same-updated-fit" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> Accuracy and time for the same updated fit</h1>
+<p>The experiments use tall and wide observed designs, two response variables, batches of ten observations or five predictors, and five calibrated timed repetitions after warm-up. Both timed workflows return coefficients through an R-only solve. The update starts from existing factors and a cached response cross-product; the alternative rebuilds the augmented factor and response cross-product. Construction of the augmented matrices needed by each workflow and the final triangular solves are included. Random-data generation, validation and initial factorization are excluded from these single-change measurements. The reference uses LAPACK without pivoting in both cases.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(ridge_comparison, <span class="at">digits =</span> <span class="dv">3</span>, <span class="at">row.names =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a> <span class="at">caption =</span> <span class="st">"Median milliseconds per fit after a single design change. Speedup is recomputation time divided by updating time; values above one favor updating."</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="caption-top table">
+<caption>Median milliseconds per fit after a single design change. Speedup is recomputation time divided by updating time; values above one favor updating.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">p</th>
+<th style="text-align: left;">operation</th>
+<th style="text-align: right;">update_ms</th>
+<th style="text-align: right;">recompute_ms</th>
+<th style="text-align: right;">speedup</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">120</td>
+<td style="text-align: right;">60</td>
+<td style="text-align: left;">columns_fixed_alpha</td>
+<td style="text-align: right;">0.094</td>
+<td style="text-align: right;">0.164</td>
+<td style="text-align: right;">1.750</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">120</td>
+<td style="text-align: right;">240</td>
+<td style="text-align: left;">columns_fixed_alpha</td>
+<td style="text-align: right;">0.766</td>
+<td style="text-align: right;">1.687</td>
+<td style="text-align: right;">2.204</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">300</td>
+<td style="text-align: right;">450</td>
+<td style="text-align: left;">columns_fixed_alpha</td>
+<td style="text-align: right;">2.437</td>
+<td style="text-align: right;">5.875</td>
+<td style="text-align: right;">2.410</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">120</td>
+<td style="text-align: right;">60</td>
+<td style="text-align: left;">rows_fixed_alpha</td>
+<td style="text-align: right;">0.109</td>
+<td style="text-align: right;">0.215</td>
+<td style="text-align: right;">1.964</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">120</td>
+<td style="text-align: right;">240</td>
+<td style="text-align: left;">rows_fixed_alpha</td>
+<td style="text-align: right;">0.766</td>
+<td style="text-align: right;">1.625</td>
+<td style="text-align: right;">2.122</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">300</td>
+<td style="text-align: right;">450</td>
+<td style="text-align: left;">rows_fixed_alpha</td>
+<td style="text-align: right;">2.687</td>
+<td style="text-align: right;">6.000</td>
+<td style="text-align: right;">2.233</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">120</td>
+<td style="text-align: right;">60</td>
+<td style="text-align: left;">rows_fixed_lambda</td>
+<td style="text-align: right;">0.160</td>
+<td style="text-align: right;">0.211</td>
+<td style="text-align: right;">1.317</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">120</td>
+<td style="text-align: right;">240</td>
+<td style="text-align: left;">rows_fixed_lambda</td>
+<td style="text-align: right;">4.000</td>
+<td style="text-align: right;">1.687</td>
+<td style="text-align: right;">0.422</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">300</td>
+<td style="text-align: right;">450</td>
+<td style="text-align: left;">rows_fixed_lambda</td>
+<td style="text-align: right;">24.500</td>
+<td style="text-align: right;">6.000</td>
+<td style="text-align: right;">0.245</td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>ridge_validation_display <span class="ot">&lt;-</span> ridge_validation</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>ridge_validation_display[, <span class="dv">4</span><span class="sc">:</span><span class="dv">7</span>] <span class="ot">&lt;-</span> <span class="fu">lapply</span>(ridge_validation_display[, <span class="dv">4</span><span class="sc">:</span><span class="dv">7</span>],</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">function</span>(x) <span class="fu">formatC</span>(x, <span class="at">format =</span> <span class="st">"e"</span>, <span class="at">digits =</span> <span class="dv">2</span>))</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(ridge_validation_display, <span class="at">row.names =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a> <span class="at">caption =</span> <span class="st">"Relative coefficient and prediction errors against QR of the augmented design with an orthogonally transformed response. Errors are scaled by the larger of one and the reference norm."</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="caption-top table">
+<caption>Relative coefficient and prediction errors against QR of the augmented design with an orthogonally transformed response. Errors are scaled by the larger of one and the reference norm.</caption>
+<colgroup>
+<col style="width: 4%">
+<col style="width: 4%">
+<col style="width: 20%">
+<col style="width: 18%">
+<col style="width: 17%">
+<col style="width: 16%">
+<col style="width: 17%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">p</th>
+<th style="text-align: left;">operation</th>
+<th style="text-align: left;">coefficient_error</th>
+<th style="text-align: left;">prediction_error</th>
+<th style="text-align: left;">recompute_error</th>
+<th style="text-align: left;">public_fit_error</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">120</td>
+<td style="text-align: right;">60</td>
+<td style="text-align: left;">rows_fixed_alpha</td>
+<td style="text-align: left;">8.51e-16</td>
+<td style="text-align: left;">8.69e-16</td>
+<td style="text-align: left;">7.49e-16</td>
+<td style="text-align: left;">8.03e-16</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">120</td>
+<td style="text-align: right;">60</td>
+<td style="text-align: left;">rows_fixed_lambda</td>
+<td style="text-align: left;">9.74e-16</td>
+<td style="text-align: left;">1.02e-15</td>
+<td style="text-align: left;">7.66e-16</td>
+<td style="text-align: left;">1.06e-15</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">120</td>
+<td style="text-align: right;">60</td>
+<td style="text-align: left;">columns_fixed_alpha</td>
+<td style="text-align: left;">9.42e-16</td>
+<td style="text-align: left;">8.09e-16</td>
+<td style="text-align: left;">9.01e-16</td>
+<td style="text-align: left;">1.07e-15</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">120</td>
+<td style="text-align: right;">240</td>
+<td style="text-align: left;">rows_fixed_alpha</td>
+<td style="text-align: left;">6.17e-15</td>
+<td style="text-align: left;">1.65e-15</td>
+<td style="text-align: left;">6.10e-15</td>
+<td style="text-align: left;">5.00e-15</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">120</td>
+<td style="text-align: right;">240</td>
+<td style="text-align: left;">rows_fixed_lambda</td>
+<td style="text-align: left;">5.60e-15</td>
+<td style="text-align: left;">1.64e-15</td>
+<td style="text-align: left;">5.12e-15</td>
+<td style="text-align: left;">4.34e-15</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">120</td>
+<td style="text-align: right;">240</td>
+<td style="text-align: left;">columns_fixed_alpha</td>
+<td style="text-align: left;">6.25e-15</td>
+<td style="text-align: left;">1.40e-15</td>
+<td style="text-align: left;">6.28e-15</td>
+<td style="text-align: left;">4.93e-15</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">300</td>
+<td style="text-align: right;">450</td>
+<td style="text-align: left;">rows_fixed_alpha</td>
+<td style="text-align: left;">6.58e-15</td>
+<td style="text-align: left;">2.52e-15</td>
+<td style="text-align: left;">6.98e-15</td>
+<td style="text-align: left;">5.31e-15</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">300</td>
+<td style="text-align: right;">450</td>
+<td style="text-align: left;">rows_fixed_lambda</td>
+<td style="text-align: left;">6.04e-15</td>
+<td style="text-align: left;">2.44e-15</td>
+<td style="text-align: left;">7.29e-15</td>
+<td style="text-align: left;">5.42e-15</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">300</td>
+<td style="text-align: right;">450</td>
+<td style="text-align: left;">columns_fixed_alpha</td>
+<td style="text-align: left;">6.93e-15</td>
+<td style="text-align: left;">2.09e-15</td>
+<td style="text-align: left;">6.89e-15</td>
+<td style="text-align: left;">5.16e-15</td>
+</tr>
+</tbody>
+</table>
+<p>The difference between the two row experiments is part of the computational question. An observation update at fixed total penalty modifies only the data contribution, whereas retaining a fixed normalized penalty also modifies the regularization block. Likewise, a predictor update must introduce the new penalty directions. The measured comparison, including these operations, determines whether maintaining the factor is advantageous on a particular problem. The complete repetitions and validation values are saved with the guide rather than replaced by a universal speed claim.</p>
+</section>
+<section id="following-the-design-across-the-boundary-pn" class="level1" data-number="6">
+<h1 data-number="6"><span class="header-section-number">6</span> Following the design across the boundary <span class="math inline">\(p=n\)</span></h1>
+<p>A sequence of changes tests whether errors accumulate in ways that a single update can conceal. One experiment adds predictors to a design with one hundred observations, increasing its width from sixty to one hundred and sixty columns. A second adds observations to a design with one hundred predictors, increasing its sample size from sixty to one hundred and sixty. Both hold <span class="math inline">\(\alpha=20\)</span> fixed and cross the unpenalized boundary <span class="math inline">\(p=n\)</span>, while their augmented designs remain full column rank throughout.</p>
+<p><a href="#fig-ridge-growing-time">Figure 8</a> displays the cumulative numerical work along each sequence. The same initial factorization cost is included in both curves. These path measurements are single elapsed-time trajectories, whereas the preceding table uses repeated calibrated calls. Small elapsed-time differences along the paths should therefore be read cautiously.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>ridge_time_plot <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a> <span class="fu">transform</span>(ridge_path, <span class="at">method =</span> <span class="st">"Updating"</span>, <span class="at">milliseconds =</span> <span class="dv">1000</span> <span class="sc">*</span> update_cumulative),</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a> <span class="fu">transform</span>(ridge_path, <span class="at">method =</span> <span class="st">"Recomputing"</span>, <span class="at">milliseconds =</span> <span class="dv">1000</span> <span class="sc">*</span> recompute_cumulative))</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(ridge_time_plot,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a> ggplot2<span class="sc">::</span><span class="fu">aes</span>(step, milliseconds, <span class="at">colour =</span> method)) <span class="sc">+</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a> ggplot2<span class="sc">::</span><span class="fu">geom_line</span>() <span class="sc">+</span> ggplot2<span class="sc">::</span><span class="fu">geom_point</span>(<span class="at">size =</span> <span class="fl">1.5</span>) <span class="sc">+</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a> ggplot2<span class="sc">::</span><span class="fu">facet_wrap</span>(<span class="sc">~</span>operation, <span class="at">scales =</span> <span class="st">"free_y"</span>) <span class="sc">+</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a> ggplot2<span class="sc">::</span><span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Update step"</span>, <span class="at">y =</span> <span class="st">"Cumulative milliseconds"</span>, <span class="at">colour =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a> ggplot2<span class="sc">::</span><span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">11</span>) <span class="sc">+</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a> ggplot2<span class="sc">::</span><span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"bottom"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="fig-ridge-growing-time" class="figure quarto-float quarto-figure quarto-figure-center anchored" style="text-align: center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-ridge-growing-time-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="fastqr-guide_files/figure-html/ridge-growing-time-1.png" alt="Figure 8: Cumulative elapsed time while adding observations or predictors at fixed total penalty. Both workflows include their initial factorization. Each panel shows one growing-design trajectory, rather than repeated timing estimates." width="100%" class="figure-img">
+<p class="caption">
+Figure 8: Cumulative elapsed time while adding observations or predictors at fixed total penalty. Both workflows include their initial factorization. Each panel shows one growing-design trajectory, rather than repeated timing estimates.
+</p>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-ridge-growing-time-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1
+</figcaption>
+</figure>
+</div>
+<p><a href="#fig-ridge-growing-error">Figure 9</a> compares the updated coefficients and predictions with a fresh orthogonal reference at every step. Agreement across the transition through <span class="math inline">\(p=n\)</span> checks the augmented construction; it does not imply that an unpenalized wide-design problem has become identifiable.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>ridge_error_plot <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a> <span class="fu">transform</span>(ridge_path, <span class="at">quantity =</span> <span class="st">"Coefficients"</span>, <span class="at">error =</span> coefficient_error),</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a> <span class="fu">transform</span>(ridge_path, <span class="at">quantity =</span> <span class="st">"Predictions"</span>, <span class="at">error =</span> prediction_error))</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(ridge_error_plot,</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a> ggplot2<span class="sc">::</span><span class="fu">aes</span>(step, <span class="fu">pmax</span>(error, .Machine<span class="sc">$</span>double.eps), <span class="at">colour =</span> quantity)) <span class="sc">+</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a> ggplot2<span class="sc">::</span><span class="fu">geom_line</span>() <span class="sc">+</span> ggplot2<span class="sc">::</span><span class="fu">geom_point</span>(<span class="at">size =</span> <span class="fl">1.5</span>) <span class="sc">+</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a> ggplot2<span class="sc">::</span><span class="fu">scale_y_log10</span>() <span class="sc">+</span> ggplot2<span class="sc">::</span><span class="fu">facet_wrap</span>(<span class="sc">~</span>operation) <span class="sc">+</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a> ggplot2<span class="sc">::</span><span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Update step"</span>, <span class="at">y =</span> <span class="st">"Scaled error (log scale)"</span>, <span class="at">colour =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a> ggplot2<span class="sc">::</span><span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">11</span>) <span class="sc">+</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a> ggplot2<span class="sc">::</span><span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"bottom"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="fig-ridge-growing-error" class="figure quarto-float quarto-figure quarto-figure-center anchored" style="text-align: center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-ridge-growing-error-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="fastqr-guide_files/figure-html/ridge-growing-error-1.png" alt="Figure 9: Coefficient and prediction errors along the growing-design sequences. Each reference is recomputed from the current augmented design by QR and orthogonal transformation of the response. Values below machine precision are clipped only for logarithmic display." width="100%" class="figure-img">
+<p class="caption">
+Figure 9: Coefficient and prediction errors along the growing-design sequences. Each reference is recomputed from the current augmented design by QR and orthogonal transformation of the response. Values below machine precision are clipped only for logarithmic display.
+</p>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-ridge-growing-error-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2
+</figcaption>
+</figure>
+</div>
+<p>The paths show how the factor and response information can be reused through a changing statistical model. They do not include selecting the penalty, and their times do not include evaluating predictions over a separate large test set. The distinction between maintaining numerical information and choosing a model is essential when using these examples to motivate a statistical application.</p>
+
+
+
+</section>
+
+<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
+<div id="ref-bjorck.2015" class="csl-entry" role="listitem">
+Björck, Åke. 2015. <em>Numerical Methods in Matrix Computations</em>. Vol. 59. Texts in Applied Mathematics. Springer, Cham. <a href="https://doi.org/10.1007/978-3-319-05089-8">https://doi.org/10.1007/978-3-319-05089-8</a>.
+</div>
+<div id="ref-golub_van_loan.2013" class="csl-entry" role="listitem">
+Golub, Gene H., and Charles F. Van Loan. 2013. <em>Matrix Computations</em>. Fourth. Johns Hopkins Studies in the Mathematical Sciences. Johns Hopkins University Press, Baltimore, MD.
+</div>
+</div></section></div></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+        const codeEl = trigger.previousElementSibling.cloneNode(true);
+        for (const childEl of codeEl.children) {
+          if (isCodeAnnotation(childEl)) {
+            childEl.remove();
+          }
+        }
+        return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>fastQR · Fast QR decomposition and update</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+<p>Worked examples · Version 1.1.6</p>
+</div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

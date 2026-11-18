@@ -161,6 +161,10 @@ window.Quarto = {
     <a class="nav-link" href="./index.html"> 
 <span class="menu-text">Overview</span></a>
   </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./theory.html"> 
+<span class="menu-text">Theory</span></a>
+  </li>  
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-tutorials" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Tutorials</span>
@@ -178,15 +182,19 @@ window.Quarto = {
     <a class="dropdown-item" href="./regression.html">
  <span class="dropdown-text">Regression and ridge paths</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./ridge-evidence.html">
+ <span class="dropdown-text">Ridge by marginal likelihood</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ridge-updates.html">
+ <span class="dropdown-text">Ridge with growing designs</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item">
     <a class="nav-link" href="./accuracy.html"> 
 <span class="menu-text">Accuracy and timing</span></a>
-  </li>  
-  <li class="nav-item">
-    <a class="nav-link" href="./theory.html"> 
-<span class="menu-text">Theory</span></a>
   </li>  
   <li class="nav-item">
     <a class="nav-link" href="./reference.html"> 
@@ -208,8 +216,14 @@ window.Quarto = {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#full-thin-and-compact-representations" id="toc-full-thin-and-compact-representations" class="nav-link active" data-scroll-target="#full-thin-and-compact-representations"><span class="header-section-number">1</span> Full, thin and compact representations</a></li>
-  <li><a href="#a-first-reproducible-example" id="toc-a-first-reproducible-example" class="nav-link" data-scroll-target="#a-first-reproducible-example"><span class="header-section-number">2</span> A first reproducible example</a></li>
+  <li><a href="#full-thin-and-compact-representations" id="toc-full-thin-and-compact-representations" class="nav-link active" data-scroll-target="#full-thin-and-compact-representations"><span class="header-section-number">1</span> Full, thin and compact representations</a>
+  <ul class="collapse">
+  <li><a href="#rank-and-rectangular-shapes" id="toc-rank-and-rectangular-shapes" class="nav-link" data-scroll-target="#rank-and-rectangular-shapes"><span class="header-section-number">1.1</span> Rank and rectangular shapes</a></li>
+  </ul></li>
+  <li><a href="#a-first-reproducible-example" id="toc-a-first-reproducible-example" class="nav-link" data-scroll-target="#a-first-reproducible-example"><span class="header-section-number">2</span> A first reproducible example</a>
+  <ul class="collapse">
+  <li><a href="#recovering-a-least-squares-coefficient-vector" id="toc-recovering-a-least-squares-coefficient-vector" class="nav-link" data-scroll-target="#recovering-a-least-squares-coefficient-vector"><span class="header-section-number">2.1</span> Recovering a least-squares coefficient vector</a></li>
+  </ul></li>
   <li><a href="#pivoting-keep-track-of-the-column-order" id="toc-pivoting-keep-track-of-the-column-order" class="nav-link" data-scroll-target="#pivoting-keep-track-of-the-column-order"><span class="header-section-number">3</span> Pivoting: keep track of the column order</a></li>
   <li><a href="#triangular-factors-and-linear-systems" id="toc-triangular-factors-and-linear-systems" class="nav-link" data-scroll-target="#triangular-factors-and-linear-systems"><span class="header-section-number">4</span> Triangular factors and linear systems</a></li>
   </ul>
@@ -238,8 +252,9 @@ window.Quarto = {
 
 
 <!-- Generato da chapters/decompositions.Rmd: modificare quel file, poi source("build.R"). -->
-<p>A QR factorization is a reusable numerical representation of a design matrix. It is useful both for solving a single least-squares problem and for updating that solution as observations or predictors change. This tutorial starts with the factorization itself, then follows those changes through worked statistical examples.</p>
-<p>The examples use <strong>fastQR 1.1.5</strong>, <code>ggplot2</code> for figures and <code>knitr</code> for tables. All code uses explicit <code>fastQR::</code> or <code>base::</code> namespaces because both packages export a function named <code>qr</code>. Install the released package with <code>install.packages("fastQR")</code>; no attachment with <code>library(fastQR)</code> is required below.</p>
+<p>A design matrix often appears in several related calculations: estimating coefficients, producing predictions, adding observations or changing the set of predictors. A QR factorization records its geometry in a form that can support each of these operations. Understanding what the factors contain is therefore useful before deciding whether to store an explicit orthogonal basis, retain only a triangular factor or keep the orthogonal transformations in compact form.</p>
+<p>This chapter introduces those representations through the identities they satisfy. The examples check reconstruction and orthogonality separately, then examine the column-ordering convention used by pivoted QR. These checks provide a common basis for the update and regression examples that follow.</p>
+<p>The examples use <strong>fastQR 1.1.6</strong>, <code>ggplot2</code> for figures and <code>knitr</code> for tables. All code uses explicit <code>fastQR::</code> or <code>base::</code> namespaces because both packages export a function named <code>qr</code>. For the examples in this guide, use the accompanying verified source build described on the Overview page. No attachment with <code>library(fastQR)</code> is required below.</p>
 <section id="full-thin-and-compact-representations" class="level1" data-number="1">
 <h1 data-number="1"><span class="header-section-number">1</span> Full, thin and compact representations</h1>
 <p>Let <span class="math inline">\(X\in\mathbb R^{n\times p}\)</span> have full column rank, with <span class="math inline">\(n&gt;p\)</span>. Its thin factorization is <span class="math display">\[
@@ -253,7 +268,8 @@ R&amp;=\begin{pmatrix}R_1\\0_{(n-p)\times p}\end{pmatrix}\in\mathbb R^{n\times p
 &amp; X&amp;=QR=Q_1R_1.
 \end{aligned}
 \]</span> Here <span class="math inline">\(Q_1^\top Q_2=0_{p\times(n-p)}\)</span> and <span class="math inline">\(Q_2^\top Q_2=I_{n-p}\)</span>, so <span class="math inline">\(Q_2\)</span> spans the orthogonal complement of the column space of <span class="math inline">\(X\)</span>. The zero block in <span class="math inline">\(R\)</span> contributes nothing to the product; the thin representation therefore suffices to reconstruct <span class="math inline">\(X\)</span>.</p>
-<p>An upper triangular <span class="math inline">\(R_1\)</span> is not generally symmetric or positive definite: it is <span class="math inline">\(R_1^\top R_1=X^\top X\)</span> that is positive definite.</p>
+<p>The orthogonal complement is needed for some operations on complete factors, but it contributes nothing to the reconstruction of the original design. Its storage can be substantial when <span class="math inline">\(n\)</span> is much larger than <span class="math inline">\(p\)</span>, which motivates retaining the thin factors whenever the subsequent calculation permits it. A compact representation goes a step further by storing the Householder transformations that define Q and forming its columns only when requested.</p>
+<p>The triangular factor <span class="math inline">\(R_1\)</span> should also be distinguished from the symmetric cross-product matrix. An upper triangular matrix is not generally symmetric or positive definite; under full column rank, the positive-definite matrix is <span class="math inline">\(R_1^\top R_1=X^\top X\)</span>.</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 33%">
@@ -290,6 +306,12 @@ R&amp;=\begin{pmatrix}R_1\\0_{(n-p)\times p}\end{pmatrix}\in\mathbb R^{n\times p
 </tr>
 </tbody>
 </table>
+<section id="rank-and-rectangular-shapes" class="level2" data-number="1.1">
+<h2 data-number="1.1" class="anchored" data-anchor-id="rank-and-rectangular-shapes"><span class="header-section-number">1.1</span> Rank and rectangular shapes</h2>
+<p>The factorization identity itself does not require a unique least-squares coefficient vector. If a design has dependent columns, a triangular factor can still represent it, but solving an unpivoted triangular system with a zero diagonal is no longer the full-column-rank calculation derived above. A rank-revealing pivoted factorization separates that situation from an ordinary full-rank solve.</p>
+<p>A wide design with <span class="math inline">\(p&gt;n\)</span> also admits an orthogonal factorization, with Q of size <span class="math inline">\(n\times n\)</span> and R of size <span class="math inline">\(n\times p\)</span>. It cannot have full column rank, so its unpenalized coefficient vector is not uniquely determined by the fitted response. The <code>qr()</code> and compact <code>qr_fast()</code> interfaces support that representation; the thin-factor interface has a different input contract. Ordinary least-squares interfaces retain their full-column-rank restrictions. Positive-penalty ridge fits also support wide designs; the chapter on ridge with growing designs develops this case through augmented least squares.</p>
+<p>The declared numerical rank and the number of stored Householder transformations also serve different purposes. Extraction through <code>qr_Q()</code> and <code>qr_R()</code> follows their documented rank-dependent output rule. <code>qr_Q_full()</code> constructs the complete orthogonal transformation from the compact information when that full transformation is required.</p>
+</section>
 </section>
 <section id="a-first-reproducible-example" class="level1" data-number="2">
 <h1 data-number="2"><span class="header-section-number">2</span> A first reproducible example</h1>
@@ -333,7 +355,8 @@ R&amp;=\begin{pmatrix}R_1\\0_{(n-p)\times p}\end{pmatrix}\in\mathbb R^{n\times p
 </tr>
 </tbody>
 </table>
-<p>The following helper measures error relative to the size of the reference matrix, using the Frobenius norm. It will also be used in the update examples.</p>
+<p>The factorization has two distinct defining properties: multiplication of the factors reconstructs X, and the columns of Q have the required inner products. The checks below examine both properties. The full Q is compared with <span class="math inline">\(I_n\)</span> through <span class="math inline">\(Q^\top Q\)</span>, whereas the thin Q is compared with <span class="math inline">\(I_p\)</span> through <span class="math inline">\(Q_1^\top Q_1\)</span>. These different identity sizes are a direct consequence of the dimensions of the two representations.</p>
+<p>The helper scales a matrix difference by the Frobenius norm of its reference. This makes discrepancies comparable across matrices with different overall magnitudes. Its denominator is bounded below by machine epsilon to avoid division by zero; for the nonzero reference matrices in this example it is the usual relative error. The same helper is reused when the design is updated.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>relative_error <span class="ot">&lt;-</span> <span class="cf">function</span>(actual, reference) {</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">norm</span>(<span class="fu">as.matrix</span>(actual <span class="sc">-</span> reference), <span class="st">"F"</span>) <span class="sc">/</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">max</span>(<span class="fu">norm</span>(<span class="fu">as.matrix</span>(reference), <span class="st">"F"</span>), .Machine<span class="sc">$</span>double.eps)</span>
@@ -342,9 +365,10 @@ R&amp;=\begin{pmatrix}R_1\\0_{(n-p)\times p}\end{pmatrix}\in\mathbb R^{n\times p
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">thin_reconstruction =</span> <span class="fu">relative_error</span>(thin<span class="sc">$</span>Q <span class="sc">%*%</span> thin<span class="sc">$</span>R, X),</span>
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">full_reconstruction =</span> <span class="fu">relative_error</span>(full<span class="sc">$</span>Q <span class="sc">%*%</span> full<span class="sc">$</span>R, X),</span>
 <span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">thin_orthogonality =</span> <span class="fu">relative_error</span>(<span class="fu">crossprod</span>(thin<span class="sc">$</span>Q), <span class="fu">diag</span>(p)),</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">Gram_identity =</span> <span class="fu">relative_error</span>(<span class="fu">crossprod</span>(thin<span class="sc">$</span>R), <span class="fu">crossprod</span>(X)))</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(<span class="at">check =</span> <span class="fu">names</span>(checks), <span class="at">relative_error =</span> <span class="fu">unname</span>(checks)),</span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>             <span class="at">digits =</span> <span class="dv">16</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">full_orthogonality =</span> <span class="fu">relative_error</span>(<span class="fu">crossprod</span>(full<span class="sc">$</span>Q), <span class="fu">diag</span>(n)),</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">Gram_identity =</span> <span class="fu">relative_error</span>(<span class="fu">crossprod</span>(thin<span class="sc">$</span>R), <span class="fu">crossprod</span>(X)))</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(<span class="at">check =</span> <span class="fu">names</span>(checks), <span class="at">relative_error =</span> <span class="fu">unname</span>(checks)),</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>             <span class="at">digits =</span> <span class="dv">16</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -355,7 +379,7 @@ R&amp;=\begin{pmatrix}R_1\\0_{(n-p)\times p}\end{pmatrix}\in\mathbb R^{n\times p
 <tbody>
 <tr class="odd">
 <td style="text-align: left;">thin_reconstruction</td>
-<td style="text-align: right;">4e-16</td>
+<td style="text-align: right;">2e-16</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">full_reconstruction</td>
@@ -363,9 +387,13 @@ R&amp;=\begin{pmatrix}R_1\\0_{(n-p)\times p}\end{pmatrix}\in\mathbb R^{n\times p
 </tr>
 <tr class="odd">
 <td style="text-align: left;">thin_orthogonality</td>
-<td style="text-align: right;">2e-16</td>
+<td style="text-align: right;">1e-16</td>
 </tr>
 <tr class="even">
+<td style="text-align: left;">full_orthogonality</td>
+<td style="text-align: right;">4e-16</td>
+</tr>
+<tr class="odd">
 <td style="text-align: left;">Gram_identity</td>
 <td style="text-align: right;">2e-16</td>
 </tr>
@@ -373,22 +401,64 @@ R&amp;=\begin{pmatrix}R_1\\0_{(n-p)\times p}\end{pmatrix}\in\mathbb R^{n\times p
 </table>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">max</span>(checks) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>These are checks of the defining identities. Comparing two implementations’ entries of <span class="math inline">\(Q\)</span> and <span class="math inline">\(R\)</span> directly would be misleading: paired column/row sign changes can produce equally valid factors.</p>
+<section id="recovering-a-least-squares-coefficient-vector" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="recovering-a-least-squares-coefficient-vector"><span class="header-section-number">2.1</span> Recovering a least-squares coefficient vector</h2>
+<p>Once the thin factors are available, the response enters through its projection onto the columns of Q. For a response <span class="math inline">\(y\in\mathbb R^n\)</span>, define <span class="math inline">\(c=Q_1^\top y\)</span>. The least-squares coefficient vector satisfies <span class="math inline">\(R_1\widehat\beta=c\)</span>, so a complete calculation needs a matrix-vector product followed by a triangular solve. Writing <span class="math inline">\(R_1^{-1}c\)</span> is a mathematical identity, but an implementation can obtain the result without constructing an inverse.</p>
+<p>The following response combines a linear signal with a deterministic perturbation. The perturbation makes the residual nonzero, allowing us to check its orthogonality to the fitted column space as well as the coefficient calculation. It is a numerical example, rather than a simulation of a particular observation-noise model.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>demo_y <span class="ot">&lt;-</span> <span class="fu">drop</span>(X <span class="sc">%*%</span> <span class="fu">seq_len</span>(p)) <span class="sc">+</span> <span class="fu">sin</span>(<span class="fu">seq_len</span>(n))</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>demo_projection <span class="ot">&lt;-</span> <span class="fu">crossprod</span>(thin<span class="sc">$</span>Q, demo_y)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>demo_coefficients <span class="ot">&lt;-</span> <span class="fu">backsolve</span>(thin<span class="sc">$</span>R, demo_projection)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>demo_fitted <span class="ot">&lt;-</span> <span class="fu">drop</span>(X <span class="sc">%*%</span> demo_coefficients)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>demo_residuals <span class="ot">&lt;-</span> demo_y <span class="sc">-</span> demo_fitted</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>qr_derivation_checks <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">coefficient_agreement =</span> <span class="fu">max</span>(<span class="fu">abs</span>(demo_coefficients <span class="sc">-</span> <span class="fu">lm.fit</span>(X, demo_y)<span class="sc">$</span>coefficients)),</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">fitted_projection =</span> <span class="fu">relative_error</span>(demo_fitted, thin<span class="sc">$</span>Q <span class="sc">%*%</span> demo_projection),</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">residual_orthogonality =</span> <span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">crossprod</span>(thin<span class="sc">$</span>Q, demo_residuals))) <span class="sc">/</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">max</span>(<span class="dv">1</span>, <span class="fu">sqrt</span>(<span class="fu">sum</span>(demo_y<span class="sc">^</span><span class="dv">2</span>))))</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">max</span>(qr_derivation_checks) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(<span class="at">check =</span> <span class="fu">names</span>(qr_derivation_checks),</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>                        <span class="at">error =</span> <span class="fu">unname</span>(qr_derivation_checks)), <span class="at">digits =</span> <span class="dv">12</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: left;">check</th>
+<th style="text-align: right;">error</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">coefficient_agreement</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">fitted_projection</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">residual_orthogonality</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+<p>The response projection has p entries, whereas the fitted response and residual have n.&nbsp;Multiplication by the thin Q maps between those coordinate systems. The near-zero value of <span class="math inline">\(Q_1^\top e\)</span> verifies the defining least-squares geometry, while comparison with <code>lm.fit()</code> checks the resulting coefficients against a separate implementation.</p>
+</section>
 </section>
 <section id="pivoting-keep-track-of-the-column-order" class="level1" data-number="3">
 <h1 data-number="3"><span class="header-section-number">3</span> Pivoting: keep track of the column order</h1>
 <p>Column pivoting changes the order in which the columns are factorized. With the permutation matrix returned by <code>qr_pivot2perm()</code>, the convention used here is <span class="math display">\[
 X=QRP,\qquad XP^\top=QR.
 \]</span> Thus the correct Gram check is <span class="math inline">\(R^\top R=PX^\top XP^\top\)</span>, not generally <span class="math inline">\(R^\top R=X^\top X\)</span>.</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>packed <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qr_fast</span>(X, <span class="at">pivot =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>Q <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qr_Q</span>(packed<span class="sc">$</span>qr, <span class="at">tau =</span> packed<span class="sc">$</span>qraux,</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>                  <span class="at">rank =</span> packed<span class="sc">$</span>rank, <span class="at">complete =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>R <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qr_R</span>(packed<span class="sc">$</span>qr, <span class="at">rank =</span> <span class="cn">NULL</span>, <span class="at">complete =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>P <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qr_pivot2perm</span>(packed<span class="sc">$</span>pivot)</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>pivot_checks <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">reconstruction =</span> <span class="fu">relative_error</span>(Q <span class="sc">%*%</span> R <span class="sc">%*%</span> P, X),</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">permuted_Gram =</span> <span class="fu">relative_error</span>(<span class="fu">crossprod</span>(R), <span class="fu">crossprod</span>(X <span class="sc">%*%</span> <span class="fu">t</span>(P))))</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(<span class="at">check =</span> <span class="fu">names</span>(pivot_checks), <span class="at">error =</span> pivot_checks),</span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>             <span class="at">digits =</span> <span class="dv">16</span>, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Pivoting also changes the coordinates of the coefficient vector. If <span class="math inline">\(z=P\beta\)</span>, then <span class="math inline">\(X\beta=QRz\)</span>. The triangular solve therefore returns <span class="math inline">\(\widehat z\)</span> in pivoted order; the original predictor order is recovered by <span class="math inline">\(\widehat\beta=P^\top\widehat z\)</span>. Restoring that order is necessary before interpreting individual coefficients or multiplying them by an unpermuted prediction design.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>packed <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qr_fast</span>(X, <span class="at">pivot =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>Q <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qr_Q</span>(packed<span class="sc">$</span>qr, <span class="at">tau =</span> packed<span class="sc">$</span>qraux,</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>                  <span class="at">rank =</span> packed<span class="sc">$</span>rank, <span class="at">complete =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>R <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qr_R</span>(packed<span class="sc">$</span>qr, <span class="at">rank =</span> <span class="cn">NULL</span>, <span class="at">complete =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>P <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qr_pivot2perm</span>(packed<span class="sc">$</span>pivot)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>pivot_checks <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">reconstruction =</span> <span class="fu">relative_error</span>(Q <span class="sc">%*%</span> R <span class="sc">%*%</span> P, X),</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">permuted_Gram =</span> <span class="fu">relative_error</span>(<span class="fu">crossprod</span>(R), <span class="fu">crossprod</span>(X <span class="sc">%*%</span> <span class="fu">t</span>(P))))</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(<span class="at">check =</span> <span class="fu">names</span>(pivot_checks), <span class="at">error =</span> pivot_checks),</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>             <span class="at">digits =</span> <span class="dv">16</span>, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -407,23 +477,28 @@ X=QRP,\qquad XP^\top=QR.
 </tr>
 </tbody>
 </table>
-<div class="sourceCode" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">max</span>(pivot_checks) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">max</span>(pivot_checks) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>pivoted_coefficients <span class="ot">&lt;-</span> <span class="fu">backsolve</span>(R, <span class="fu">crossprod</span>(Q, demo_y))</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>original_order_coefficients <span class="ot">&lt;-</span> <span class="fu">drop</span>(<span class="fu">t</span>(P) <span class="sc">%*%</span> pivoted_coefficients)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>pivot_derivation_error <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="fu">abs</span>(original_order_coefficients <span class="sc">-</span> demo_coefficients))</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(pivot_derivation_error <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>All subsequent update examples start from <strong>unpivoted</strong> factors, so that insertion and deletion positions refer directly to the original columns. Rank-deficient designs require additional care; the worked examples retain full column rank.</p>
 </section>
 <section id="triangular-factors-and-linear-systems" class="level1" data-number="4">
 <h1 data-number="4"><span class="header-section-number">4</span> Triangular factors and linear systems</h1>
-<p>When only the Gram factor is needed, storing <span class="math inline">\(Q\)</span> may be unnecessary. The two functions below return triangular factors; we check the invariant rather than their signs.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>R_qr <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qrchol</span>(X)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>R_only <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">rchol</span>(X)</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">relative_error</span>(<span class="fu">crossprod</span>(R_qr), <span class="fu">crossprod</span>(X)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>,</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>          <span class="fu">relative_error</span>(<span class="fu">crossprod</span>(R_only), <span class="fu">crossprod</span>(X)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="fu">crossprod</span>(X) <span class="sc">+</span> <span class="fu">diag</span>(p)</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>b <span class="ot">&lt;-</span> <span class="fu">seq_len</span>(p)</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>solution <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qrsolve</span>(A, b, <span class="at">type =</span> <span class="st">"QR"</span>)</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="fu">relative_error</span>(A <span class="sc">%*%</span> solution, b)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>A triangular factor can be useful even when the subsequent calculation does not require an explicit orthogonal basis. The identity <span class="math inline">\(R^\top R=X^\top X\)</span> provides the cross-product information through R, with storage proportional to <span class="math inline">\(p^2\)</span>. Two valid factors can have different row signs while satisfying the same identity, so agreement of the invariant is more informative here than equality of their entries.</p>
+<p>The final part of the example solves a square system <span class="math inline">\(Au=b\)</span>, where <span class="math inline">\(A=X^\top X+I_p\)</span>. In this call, <code>qrsolve(A, b)</code> factorizes A and solves for u. It is distinct from directly computing least-squares coefficients by factorizing X and projecting a response. Adding the identity makes this demonstration system positive definite; its purpose is to show the solver interface on an easily checked calculation.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>R_qr <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qrchol</span>(X)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>R_only <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">rchol</span>(X)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">relative_error</span>(<span class="fu">crossprod</span>(R_qr), <span class="fu">crossprod</span>(X)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>          <span class="fu">relative_error</span>(<span class="fu">crossprod</span>(R_only), <span class="fu">crossprod</span>(X)) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="fu">crossprod</span>(X) <span class="sc">+</span> <span class="fu">diag</span>(p)</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>b <span class="ot">&lt;-</span> <span class="fu">seq_len</span>(p)</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>solution <span class="ot">&lt;-</span> fastQR<span class="sc">::</span><span class="fu">qrsolve</span>(A, b, <span class="at">type =</span> <span class="st">"QR"</span>)</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="fu">relative_error</span>(A <span class="sc">%*%</span> solution, b)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <pre><code>## [1] 6.092069e-16</code></pre>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">relative_error</span>(A <span class="sc">%*%</span> solution, b) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">relative_error</span>(A <span class="sc">%*%</span> solution, b) <span class="sc">&lt;</span> <span class="fl">1e-10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>The square system above is deliberately well conditioned. Later examples distinguish factorization error from the sensitivity of a least-squares solution to an ill-conditioned design.</p>
 
 
@@ -839,7 +914,7 @@ X=QRP,\qquad XP^\top=QR.
       &nbsp;
     </div>
     <div class="nav-footer-right">
-<p>Worked examples · Version 1.1.5</p>
+<p>Worked examples · Version 1.1.6</p>
 </div>
   </div>
 </footer>
